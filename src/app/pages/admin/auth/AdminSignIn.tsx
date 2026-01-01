@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   TextInput,
   PasswordInput,
@@ -8,40 +7,40 @@ import {
   Button,
   Center,
   Box,
-  Loader,
+  Stack,
+  Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconMail, IconLock } from "@tabler/icons-react";
+import useSignIn from "../../../../hooks/useSignIn";
+import { Link } from "react-router";
 
 export default function AdminSignin() {
-  const [loading, setLoading] = useState(false);
+  const signInMutation = useSignIn();
 
   const form = useForm({
     initialValues: {
       email: "",
       password: "",
-      remember: false,
     },
 
     validate: {
-      email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+      email: (value) =>
+        /^\S+@\S+$/.test(value) ? null : "유효한 이메일을 입력하세요",
       password: (value) =>
-        value.length >= 6 ? null : "Password must be at least 6 characters",
+        value.length >= 6 ? null : "비밀번호는 6자 이상입니다",
     },
   });
 
   const handleSubmit = async (values: typeof form.values) => {
-    setLoading(true);
+    signInMutation.mutate(values);
   };
 
   return (
     <Box h={"100dvh"}>
       <Container size={420} h={"100%"}>
         <Center h="100%">
-          <Box
-            w={"100%"}
-            maw={"80%"}
-          >
+          <Box w={"100%"} maw={"80%"}>
             <Title order={2} ta="center" mb="md">
               Welcome back!
             </Title>
@@ -50,26 +49,30 @@ export default function AdminSignin() {
             </Text>
 
             <form onSubmit={form.onSubmit(handleSubmit)}>
-              <TextInput
-                label="Email"
-                placeholder="you@example.com"
-                leftSection={<IconMail size={16} />}
-                required
-                {...form.getInputProps("email")}
-                mb="md"
-              />
+              <Stack gap={"xs"}>                
+                <TextInput
+                  label="Email"
+                  placeholder="you@example.com"
+                  leftSection={<IconMail size={16} />}
+                  required
+                  {...form.getInputProps("email")}
+                />
 
-              <PasswordInput
-                label="Password"
-                placeholder="Your password"
-                leftSection={<IconLock size={16} />}
-                required
-                {...form.getInputProps("password")}
-                mb="md"
-              />
-              <Button fullWidth type="submit" loading={loading}>
-                {loading ? <Loader size="sm" color="white" /> : "Login"}
-              </Button>
+                <PasswordInput
+                  label="Password"
+                  placeholder="Your password"
+                  leftSection={<IconLock size={16} />}
+                  required
+                  {...form.getInputProps("password")}
+                />
+                <Button fullWidth type="submit">
+                  로그인
+                </Button>
+                <Divider/>
+                <Button component={Link} to={"/admin/auth/sign-up"} variant="subtle" fullWidth>
+                  계정이 없으신가요?
+                </Button>
+              </Stack>
             </form>
           </Box>
         </Center>

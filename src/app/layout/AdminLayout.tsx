@@ -2,10 +2,12 @@ import { useState } from "react";
 import {
   AppShell,
   Burger,
+  Button,
   Group,
   NavLink,
   rem,
   ScrollArea,
+  Select,
   Title,
 } from "@mantine/core";
 import { Outlet, useLocation, useNavigate } from "react-router";
@@ -13,12 +15,15 @@ import {
   IconHomeEdit,
   IconLayoutDashboard,
   IconLogout,
+  IconUsers,
 } from "@tabler/icons-react";
+import { useLogout } from "../../hooks/useLogout";
 
 export default function AdminLayout() {
   const [opened, setOpened] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const logoutMutation = useLogout();
 
   const menuItems = [
     {
@@ -32,6 +37,12 @@ export default function AdminLayout() {
       path: "/admin/manage-space",
       icons: IconHomeEdit,
       description: "공간 수정 및 생성",
+    },
+    {
+      label: "멤버관리",
+      path: "/admin/manage-users",
+      icons: IconUsers,
+      description: "멤버 권한 설정 및 수정",
     },
   ];
 
@@ -64,6 +75,11 @@ export default function AdminLayout() {
             visibleFrom="sm"
             style={{ display: "none" }} // 데스크톱에서는 버거 숨김 (항상 열림)
           />
+
+          <Select
+            placeholder="관리할 공간을 선택하세요"
+            data={["React", "Angular", "Vue", "Svelte"]}
+          />
         </Group>
       </AppShell.Header>
 
@@ -87,9 +103,6 @@ export default function AdminLayout() {
                   "&:hover": {
                     borderRadius: "var(--mantine-radius-md)",
                   },
-                  "&[data-active]": {
-                    borderRadius: "var(--mantine-radius-md)",
-                  },
                 },
               }}
               leftSection={
@@ -106,23 +119,25 @@ export default function AdminLayout() {
         </AppShell.Section>
 
         <AppShell.Section>
-          <NavLink
-            styles={{
-              root: {
-                borderRadius: "var(--mantine-radius-md)",
-                "&:hover": {
-                  borderRadius: "var(--mantine-radius-md)",
-                },
-              },
-            }}
-            label="Logout"
-            color="red"
+          <Button
+            // styles={{
+            //   root: {
+            //     borderRadius: "var(--mantine-radius-md)",
+            //     "&:hover": {
+            //       borderRadius: "var(--mantine-radius-md)",
+            //     },
+            //   },
+            // }}
+            justify="center"
+            fullWidth
+            variant={"subtle"}
+            color={"dark"}
             leftSection={<IconLogout size={20} />}
-            onClick={() => {
-              // 로그아웃 로직
-              navigate("/login");
-            }}
-          />
+            onClick={() => logoutMutation.mutate()}
+            loading={logoutMutation.isPending}
+          >
+            로그아웃
+          </Button>
         </AppShell.Section>
       </AppShell.Navbar>
 

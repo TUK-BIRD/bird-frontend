@@ -6,6 +6,9 @@ import Dashboard from "./pages/admin/Dashboard";
 import SpaceManagement from "./pages/admin/SpaceManagement";
 import AuthLayout from "./layout/AuthLayout";
 import AdminSignIn from "./pages/admin/auth/AdminSignIn";
+import NotFound from "./pages/NotFound";
+import { RequireAuth } from "./components/RequireAuth";
+import AdminSignUp from "./pages/admin/auth/AdminSignUp";
 
 export default function Router() {
   return (
@@ -15,7 +18,13 @@ export default function Router() {
         <Route path="/" element={<Home />} />
 
         {/* Admin Pages */}
-        <Route element={<AdminLayout />}>
+        <Route
+          element={
+            <RequireAuth>
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
           <Route path="admin">
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -24,7 +33,11 @@ export default function Router() {
         </Route>
         <Route element={<AuthLayout />}>
           <Route path="/admin/auth/sign-in" element={<AdminSignIn />} />
+          <Route path="/admin/auth/sign-up" element={<AdminSignUp />} />
         </Route>
+
+        {/* Not Found Page */}
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );
