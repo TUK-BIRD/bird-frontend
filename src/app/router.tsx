@@ -1,14 +1,17 @@
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Outlet, Route, Routes } from "react-router";
 import RootLayout from "./layout/RootLayout";
 import AdminLayout from "./layout/AdminLayout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/admin/Dashboard";
-import SpaceManagement from "./pages/admin/SpaceManagement";
+import SpaceManagement from "./pages/admin/RoomSelect";
 import AuthLayout from "./layout/AuthLayout";
 import AdminSignIn from "./pages/admin/auth/AdminSignIn";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./components/RequireAuth";
 import AdminSignUp from "./pages/admin/auth/AdminSignUp";
+import SpaceSelect from "./pages/admin/SpaceSelect";
+import RoomSelect from "./pages/admin/RoomSelect";
+import RoomCreate from "./pages/admin/RoomCreate";
 
 export default function Router() {
   return (
@@ -19,16 +22,20 @@ export default function Router() {
 
         {/* Admin Pages */}
         <Route
+          path="admin"
           element={
             <RequireAuth>
-              <AdminLayout />
+              <Outlet />
             </RequireAuth>
           }
         >
-          <Route path="admin">
+          <Route path="spaces" element={<SpaceSelect />} />
+
+          <Route element={<AdminLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="manage-space" element={<SpaceManagement />} />
+            <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
+            <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
+            <Route path="space/:spaceId/rooms/create" element={<RoomCreate />} />
           </Route>
         </Route>
         <Route element={<AuthLayout />}>

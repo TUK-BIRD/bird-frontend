@@ -1,12 +1,15 @@
+import axios from "axios";
+import type { LoginRequest, RegisterRequest } from "../types/auth";
 import apiClient from "./client";
 
-export interface SignUpPayload {
-  email: string;
-  password: string;
-  name: string;
-  spaceName: string;
-  spaceDescription: string;
-}
+export const signUp = (payload: RegisterRequest) =>
+  apiClient.post("/auth/register", payload).then((res) => res.data);
 
-export const signUp = (payload: SignUpPayload) =>
-  apiClient.post("/auth/signup", payload).then((res) => res.data);
+
+export const signIn = async (payload: LoginRequest) => {
+  await axios.get("http://api.bird.test/sanctum/csrf-cookie", {
+    withCredentials: true
+  });
+  
+  return apiClient.post("/auth/login", payload).then((res) => res.data);
+};

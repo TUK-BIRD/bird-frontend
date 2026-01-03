@@ -1,16 +1,16 @@
 // components/RequireAuth.tsx
 import { useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router';
-import { useAuth } from '../../hooks/useAuth';
-import type { User } from '../../types/auth';
+import { useUser } from '../../hooks/useUser';
 import { Loader } from '@mantine/core';
+import type { User } from '../../types/user';
 
 interface RequireAuthProps {
   children?: React.ReactNode;
 }
 
 export function RequireAuth({ children }: RequireAuthProps) {
-  const { data: user, isLoading } = useAuth() as { data: User | undefined; isLoading: boolean };
+  const { data: user, isLoading } = useUser() as { data: User | undefined; isLoading: boolean };
   const navigate = useNavigate();
   const location = useLocation();
 

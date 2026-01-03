@@ -35,7 +35,7 @@ function AdminSignUp() {
       name: "",
       email: "",
       password: "",
-      confirmPassword: "",
+      passwordConfirmation: "",
       spaceName: "",
       spaceDescription: "",
     },
@@ -46,8 +46,8 @@ function AdminSignUp() {
             ? null
             : "유효한 이메일을 입력하세요",
           password: values.password.length >= 8 ? null : "8자 이상 입력하세요",
-          confirmPassword:
-            values.confirmPassword === values.password
+          passwordConfirmation:
+            values.passwordConfirmation === values.password
               ? null
               : "비밀번호가 일치하지 않습니다",
         };
@@ -70,9 +70,7 @@ function AdminSignUp() {
     if (result.hasErrors) return;
 
     const values = form.getValues();
-    const { confirmPassword, ...payload } = values;
-    console.log(values);
-    signUpMutation.mutate(payload);
+    signUpMutation.mutate(values);
   };
   return (
     <Center h="100vh">
@@ -108,8 +106,8 @@ function AdminSignUp() {
               <PasswordInput
                 label="비밀번호 확인"
                 required
-                key={form.key("confirmPassword")}
-                {...form.getInputProps("confirmPassword")}
+                key={form.key("passwordConfirmation")}
+                {...form.getInputProps("passwordConfirmation")}
               />
             </Stack>
           </Stepper.Step>

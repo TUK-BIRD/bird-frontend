@@ -1,9 +1,9 @@
 // hooks/useAuth.ts
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
-import type { User } from '../types/auth';
+import type { User } from '../types/user';
 
-export function useAuth() {
+export function useUser() {
   return useQuery<User>({
     queryKey: ['user'],
     queryFn: () => apiClient.get<User>('/user').then(res => res.data),
