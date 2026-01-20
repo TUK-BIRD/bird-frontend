@@ -12,7 +12,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { Outlet, useNavigate, useParams } from "react-router";
+import { Link, Outlet, useNavigate, useParams } from "react-router";
 import {
   IconHomeEdit,
   IconLayoutDashboard,
@@ -66,7 +66,7 @@ export default function AdminLayout() {
     },
     {
       label: "멤버관리",
-      path: `/admin/space/${spaceId}/users`,
+      path: `/admin/space/${spaceId}/members`,
       icons: IconUsers,
       description: "멤버 권한 설정 및 수정",
     },
@@ -92,7 +92,9 @@ export default function AdminLayout() {
               size="sm"
               hiddenFrom="sm"
             />
-            <Title order={3}>Bird Admin</Title>
+            <Text component={Link} to={`/admin/space/${spaceId}/dashboard`}>
+              Bird Admin
+            </Text>
           </Group>
           <Burger
             opened={opened}

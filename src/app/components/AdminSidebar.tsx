@@ -56,7 +56,6 @@ export default function AdminSidebar({ items }: { items: MenuItem[] }) {
                   styles={{
                     root: {
                       borderRadius: "var(--mantine-radius-md)",
-                      marginLeft: rem(12),
                       "&:hover": {
                         borderRadius: "var(--mantine-radius-md)",
                       },

@@ -13,10 +13,15 @@ import {
 import { useForm } from "@mantine/form";
 import { IconMail, IconLock } from "@tabler/icons-react";
 import useSignIn from "../../../../hooks/useSignIn";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 export default function AdminSignin() {
   const signInMutation = useSignIn();
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname + location.state?.from?.search || '/admin/dashboard';
 
   const form = useForm({
     initialValues: {
@@ -34,6 +39,7 @@ export default function AdminSignin() {
 
   const handleSubmit = async (values: typeof form.values) => {
     signInMutation.mutate(values);
+    navigate(from, { replace: true });
   };
 
   return (
@@ -49,7 +55,7 @@ export default function AdminSignin() {
             </Text>
 
             <form onSubmit={form.onSubmit(handleSubmit)}>
-              <Stack gap={"xs"}>                
+              <Stack gap={"xs"}>
                 <TextInput
                   label="Email"
                   placeholder="you@example.com"
@@ -68,8 +74,13 @@ export default function AdminSignin() {
                 <Button fullWidth type="submit">
                   로그인
                 </Button>
-                <Divider/>
-                <Button component={Link} to={"/admin/auth/sign-up"} variant="subtle" fullWidth>
+                <Divider />
+                <Button
+                  component={Link}
+                  to={"/admin/auth/sign-up"}
+                  variant="subtle"
+                  fullWidth
+                >
                   계정이 없으신가요?
                 </Button>
               </Stack>

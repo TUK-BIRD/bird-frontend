@@ -13,7 +13,7 @@ export function RedirectIfLoggedIn({ children }: RedirectIfLoggedInProps) {
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate("/admin", { replace: true });
+      navigate("/admin/spaces", { replace: true });
     }
   }, [isLoading, user, navigate]);
 
