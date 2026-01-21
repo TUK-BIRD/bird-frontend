@@ -4,7 +4,6 @@ import {
   Group,
   Text,
   ActionIcon,
-  Badge,
   rem,
   Paper,
   Title,
@@ -17,6 +16,7 @@ import { MemberAddModal } from "./MemberAddModal";
 import type { MemberAddType } from "../../../types/types";
 import apiClient from "../../../api/client";
 import { useParams } from "react-router";
+import useSpaceUsers from "../../../hooks/useSpaceUsers";
 
 const initialMembers = [
   {
@@ -42,10 +42,11 @@ const initialMembers = [
   },
 ];
 
-
 export function MemberTable() {
   const [members, setMembers] = useState(initialMembers);
   const { spaceId } = useParams<{ spaceId: string }>();
+  const params = useParams();
+  const { data: space_users, isLoading } = useSpaceUsers(params.spaceId as string);
 
   // 역할 변경 핸들러
   const handleRoleChange = (id: string, newRole: string | null) => {
@@ -53,23 +54,23 @@ export function MemberTable() {
 
     // UI 업데이트
     setMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, role: newRole } : m))
+      prev.map((m) => (m.id === id ? { ...m, role: newRole } : m)),
     );
 
     console.log(`Member ${id} role changed to: ${newRole}`);
     // TODO: 여기서 API 호출 (ex: axios.patch(`/api/members/${id}`, { role: newRole }))
   };
 
-  const rows = members.map((item) => (
+  const rows = space_users?.map((item) => (
     <Table.Tr key={item.id}>
       <Table.Td>
         <Group gap="sm">
           <div>
             <Text fz="sm" fw={500}>
-              {item.name}
+              {item.user.name}
             </Text>
             <Text fz="xs" c="dimmed">
-              {item.email}
+              {item.user.email}
             </Text>
           </div>
         </Group>
@@ -78,7 +79,7 @@ export function MemberTable() {
       {/* 3. Badge 대신 Select 컴포넌트 사용 */}
       <Table.Td>
         <Select
-          data={["관리자", "사용자", "게스트"]}
+          data={["MEMBER", "OWNER"]}
           value={item.role}
           onChange={(value) => handleRoleChange(item.id, value)}
           variant="filled"
@@ -87,7 +88,6 @@ export function MemberTable() {
           w={100} // 너비 고정
         />
       </Table.Td>
-
 
       <Table.Td>
         <Group gap={0} justify="flex-end">
