@@ -1,7 +1,7 @@
 // components/RedirectIfLoggedIn.tsx
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useUser } from "../../hooks/useUser";
+import { useUser } from "@/hooks/useUser";
 
 interface RedirectIfLoggedInProps {
   children: React.ReactNode;

@@ -21,7 +21,7 @@ export default function AdminSignin() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname + location.state?.from?.search || '/admin/dashboard';
+  const from = location.state?.from?.pathname + location.state?.from?.search || '/admin/spaces';
 
   const form = useForm({
     initialValues: {

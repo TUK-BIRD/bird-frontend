@@ -26,7 +26,7 @@ export default function NotFound() {
           </Text>
           <Button
             component={Link}
-            to="/admin/dashboard"
+            to="/admin/spaces"
             size="lg"
             variant="gradient"
             gradient={{ from: "blue", to: "cyan" }}

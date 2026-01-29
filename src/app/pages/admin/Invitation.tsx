@@ -56,7 +56,7 @@ export default function Invitation() {
             message: "이미 이 공간의 멤버입니다.",
             color: "yellow",
           });
-          navigate("/admin/dashboard/spaces");
+          navigate("/admin/spaces");
         } else {
           notifications.show({
             title: "오류",
