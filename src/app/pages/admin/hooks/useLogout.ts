@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import apiClient from "../api/client";
+import apiClient from "@/api/client";
 
 interface LogoutResponse {
   message: string;

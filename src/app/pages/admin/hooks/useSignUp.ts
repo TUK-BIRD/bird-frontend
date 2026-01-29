@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { signUp } from "../api/auth";
+import { signUp } from "@/api/auth";
 
 import { useNavigate } from "react-router";
-import type { RegisterRequest } from "../types/auth";
+import type { RegisterRequest } from "@/types/auth";
 
 export function useSignUp() {
   const navigate = useNavigate();
@@ -11,6 +11,6 @@ export function useSignUp() {
     mutationFn: (payload: RegisterRequest) => signUp(payload),
     onSuccess: () => {
       navigate("/admin/auth/sign-in");
-    }
+    },
   });
 }

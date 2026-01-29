@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import apiClient from "../api/client";
+import apiClient from "@/api/client";
 
 export default function useSpaceUsers(spaceId: string) {
   return useQuery<any[]>({

@@ -14,7 +14,7 @@ import {
 } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import { useState } from "react";
-import { useSignUp } from "../../../../hooks/useSignUp";
+import { useSignUp } from "../hooks/useSignUp";
 
 function AdminSignUp() {
   const signUpMutation = useSignUp();

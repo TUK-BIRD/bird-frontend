@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type LoginRequest } from "../types/auth";
-import { signIn } from "../api/auth";
+import { type LoginRequest } from "@/types/auth";
+import { signIn } from "@/api/auth";
 
 export default function useSignIn() {
   const queryClient = useQueryClient();

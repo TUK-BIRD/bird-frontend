@@ -20,10 +20,10 @@ import {
   IconPlus,
   IconUsers,
 } from "@tabler/icons-react";
-import { useLogout } from "../../hooks/useLogout";
-import useSpaces from "../../hooks/useSpaces";
+import { useLogout } from "@/app/pages/admin/hooks/useLogout";
+import useSpaces from "@/hooks/useSpaces";
+import AdminSidebar from "@/app/components/AdminSidebar";
 import { useAuth } from "../auth/useAuth";
-import AdminSidebar from "../components/AdminSidebar";
 
 export default function AdminLayout() {
   const [opened, setOpened] = useState(false);

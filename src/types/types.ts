@@ -1,14 +1,3 @@
-export type Tool = "select" | "rect";
-
-export type RectShape = {
-  id: string;
-  type: "rect";
-  xM: number;
-  yM: number;
-  wM: number;
-  hM: number;
-};
-
 export const UserSpaceRole = {
   MEMBER: "MEMBER",
   ADMIN: "ADMIN",
@@ -20,3 +9,30 @@ export type MemberAddType = {
   email: string;
   role: UserSpaceRole;
 }
+
+// types.ts
+export type ToolMode = 'select' | 'room' | 'door' | 'table' | 'sensor';
+
+export type EntityType = 'room' | 'door' | 'table' | 'sensor';
+
+export type EntityBase = {
+  id: string;
+  type: EntityType;
+  x: number;
+  y: number;
+  rotation: number; // degrees
+};
+
+export type RoomEntity = EntityBase & {
+  type: 'room';
+  width: number;
+  height: number;
+};
+
+export type ItemEntity = EntityBase & {
+  type: 'door' | 'table' | 'sensor';
+  width: number;
+  height: number;
+};
+
+export type Entity = RoomEntity | ItemEntity;

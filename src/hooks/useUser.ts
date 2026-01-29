@@ -1,7 +1,7 @@
 // hooks/useAuth.ts
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '../api/client';
-import type { User } from '../types/user';
+import apiClient from '@/api/client';
+import type { User } from '@/types/user';
 
 export function useUser() {
   return useQuery<User>({

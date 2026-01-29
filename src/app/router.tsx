@@ -30,15 +30,12 @@ export default function Router() {
             </RequireAuth>
           }
         >
+          <Route path="space/:spaceId/rooms/create" element={<RoomCreate />} />
           <Route path="spaces" element={<SpaceSelect />} />
           <Route path="invitations/accept" element={<Invitation />} />
           <Route element={<AdminLayout />}>
             <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
             <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
-            <Route
-              path="space/:spaceId/rooms/create"
-              element={<RoomCreate />}
-            />
             <Route path="space/:spaceId/members" element={<Members />} />
           </Route>
         </Route>

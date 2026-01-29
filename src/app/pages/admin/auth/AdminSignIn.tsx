@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconMail, IconLock } from "@tabler/icons-react";
-import useSignIn from "../../../../hooks/useSignIn";
+import useSignIn from "../hooks/useSignIn";
 import { Link, useLocation, useNavigate } from "react-router";
 
 export default function AdminSignin() {

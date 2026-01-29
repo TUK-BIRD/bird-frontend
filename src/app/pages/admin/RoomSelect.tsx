@@ -1,11 +1,21 @@
 import { useNavigate, useParams } from "react-router";
 import useRooms from "../../../hooks/useRooms";
-import { Card, Group, Loader, Stack, Text, Button, SimpleGrid } from "@mantine/core";
+import {
+  Card,
+  Group,
+  Loader,
+  Stack,
+  Text,
+  Button,
+  SimpleGrid,
+} from "@mantine/core";
+import useCreateRoomMutation from "../../../hooks/useCreateRoomMutation";
 
 export default function RoomSelect() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const { data: rooms, isLoading: isRoomLoading } = useRooms(spaceId!);
   const navigate = useNavigate();
+  // const { mutate, isPending, error } = useCreateRoom(spaceId!);
 
   if (isRoomLoading) {
     return (
@@ -26,7 +36,8 @@ export default function RoomSelect() {
           </Text>
           <Button
             mt="md"
-            onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
+            // onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
+            // onClick={mutate}
           >
             Room 생성
           </Button>
@@ -42,7 +53,8 @@ export default function RoomSelect() {
           Rooms
         </Text>
         <Button
-          onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
+          // onClick={() => mutate()}
+          // onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
         >
           Room 생성
         </Button>
