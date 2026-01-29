@@ -14,7 +14,7 @@ export function useKeyboardShortcuts(params: {
       if (disabled) return;
       if (!selected) return;
 
-      if (ev.key === "Backspace" || ev.key === "Delete") {
+      if (ev.key === "Delete") {
         ev.preventDefault();
         onDelete();
       }
