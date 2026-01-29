@@ -148,12 +148,12 @@ export default function FloorPlanner() {
             spaceId,
             blueprint: stageRef.current?.findOne(".entities-layer")?.toObject()
           });
-          // createRoomMutation.mutate({
-          //   name,
-          //   description,
-          //   spaceId: spaceId,
-          //   blueprintJson: stageRef.current?.toJSON(),
-          // });
+          createRoomMutation.mutate({
+            name,
+            description,
+            spaceId: spaceId,
+            blueprintJson: stageRef.current?.findOne(".entities-layer")?.toJSON(),
+          });
         }}
       />
 
