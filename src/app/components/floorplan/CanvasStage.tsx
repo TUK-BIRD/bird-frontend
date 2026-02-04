@@ -33,9 +33,15 @@ export function CanvasStage(props: {
   onMove: (id: string, pos: { x: number; y: number }) => void;
   onResizeRoom: (id: string, size: { width: number; height: number }) => void;
   onResizeItem: (id: string, size: { width: number; height: number }) => void;
+  readOnly?: boolean;
 }) {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const orderedEntities = [...props.entities].sort((a, b) => {
+    if (a.type === "room" && b.type !== "room") return -1;
+    if (a.type !== "room" && b.type === "room") return 1;
+    return 0;
+  });
 
   useEffect(() => {
     props.onReady({
@@ -50,6 +56,7 @@ export function CanvasStage(props: {
       width={props.width}
       height={props.height}
       onMouseDown={(e: any) => {
+        if (props.readOnly) return;
         const stage = e.target.getStage() as Konva.Stage;
 
         if (props.mode === "select") {
@@ -64,6 +71,7 @@ export function CanvasStage(props: {
         }
       }}
       onMouseMove={(e: any) => {
+        if (props.readOnly) return;
         if (props.mode !== "room") return;
         const stage = e.target.getStage() as Konva.Stage;
         const p = stage.getPointerPosition();
@@ -71,6 +79,7 @@ export function CanvasStage(props: {
         props.onRoomDrawMove(p);
       }}
       onMouseUp={() => {
+        if (props.readOnly) return;
         if (props.mode !== "room") return;
         props.onRoomDrawEnd();
       }}
@@ -98,13 +107,13 @@ export function CanvasStage(props: {
         ))}
       </Layer>
       <Layer name="entities-layer">
-        {props.entities.map((ent) => {
+        {orderedEntities.map((ent) => {
           if (ent.type === "room") {
             return (
               <RoomEntity
                 key={ent.id}
                 entity={ent}
-                draggable={props.mode === "select"}
+                draggable={props.mode === "select" && !props.readOnly}
                 onSelect={() => props.onSelect(ent.id)}
                 onDragEnd={(pos) => props.onMove(ent.id, pos)}
                 onResize={(size) => props.onResizeRoom(ent.id, size)}
@@ -116,7 +125,7 @@ export function CanvasStage(props: {
               <TableEntity
                 key={ent.id}
                 entity={ent}
-                draggable={props.mode === "select"}
+                draggable={props.mode === "select" && !props.readOnly}
                 isSelected={props.selectedId === ent.id}
                 onSelect={() => props.onSelect(ent.id)}
                 onDragEnd={(pos) => props.onMove(ent.id, pos)}
@@ -129,7 +138,7 @@ export function CanvasStage(props: {
               <DoorEntity
                 key={ent.id}
                 entity={ent}
-                draggable={props.mode === "select"}
+                draggable={props.mode === "select" && !props.readOnly}
                 onSelect={() => props.onSelect(ent.id)}
                 onDragEnd={(pos) => props.onMove(ent.id, pos)}
               />
@@ -139,7 +148,7 @@ export function CanvasStage(props: {
             <SensorEntity
               key={ent.id}
               entity={ent}
-              draggable={props.mode === "select"}
+              draggable={props.mode === "select" && !props.readOnly}
               onSelect={() => props.onSelect(ent.id)}
               onDragEnd={(pos) => props.onMove(ent.id, pos)}
             />
@@ -162,9 +171,10 @@ export function CanvasStage(props: {
 
         <Transformer
           ref={transformerRef}
-          rotateEnabled
+          rotateEnabled={!props.readOnly}
           flipEnabled={false}
           boundBoxFunc={(oldBox, newBox) => {
+            if (props.readOnly) return oldBox;
             if (Math.abs(newBox.width) < 10 || Math.abs(newBox.height) < 10)
               return oldBox;
             return newBox;

@@ -10,9 +10,9 @@ type SaveRoomBody = {
 
 async function createRoom(body: SaveRoomBody) {
   const res = await apiClient.post(`/space/${body.spaceId}/room/create`, body);
-  console.log(res.data);
+  return res.data;
 }
 
-export function useCreateRoomMutation() {
-  return useMutation({ mutationFn: createRoom });
+export function useCreateRoomMutation(options?: Parameters<typeof useMutation>[0]) {
+  return useMutation({ mutationFn: createRoom, ...options });
 }

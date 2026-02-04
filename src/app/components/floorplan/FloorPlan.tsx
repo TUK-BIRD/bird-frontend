@@ -1,4 +1,10 @@
-import { useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type Konva from "konva";
 import { Paper } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -16,7 +22,35 @@ import { METERS_TO_PX } from "./constants";
 import { useCreateRoomMutation } from "../../../hooks/useCreateRoomMutation";
 import { useParams } from "react-router";
 
-export default function FloorPlanner() {
+type FloorPlannerProps = {
+  showToolbar?: boolean;
+  title?: string;
+  description?: string | null;
+  blueprintJson?: string | object | null;
+  readOnly?: boolean;
+  reloadKey?: number | string;
+  fitToAdminLayout?: boolean;
+  onCreated?: (room: any) => void;
+};
+
+export type FloorPlannerHandle = {
+  getBlueprintJson: () => string | null;
+};
+
+const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
+  (
+    {
+      showToolbar = true,
+      title,
+      description,
+      blueprintJson,
+      readOnly = false,
+      reloadKey,
+      fitToAdminLayout = false,
+      onCreated,
+    },
+    ref,
+  ) => {
   const [mode, setMode] = useState<ToolMode>("select");
   const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -31,16 +65,153 @@ export default function FloorPlanner() {
 
   const selected = entities.find((e) => e.id === selectedId) ?? null;
   const selectionLocked = !!selected?.locked;
+  const effectiveSelectedId = readOnly ? null : selectedId;
+
+  const hasLoadedBlueprint = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    getBlueprintJson: () =>
+      stageRef.current?.findOne(".entities-layer")?.toJSON() ?? null,
+  }));
+
+  const parseBlueprintEntities = (input: string | object | null | undefined) => {
+    if (!input) return [] as Entity[];
+    let data: any = input;
+    if (typeof input === "string") {
+      try {
+        data = JSON.parse(input);
+      } catch {
+        return [] as Entity[];
+      }
+    }
+
+    if (Array.isArray(data)) {
+      return data.filter((item) => item && typeof item === "object");
+    }
+
+    if (!data || typeof data !== "object") return [] as Entity[];
+
+    const findLayer = (node: any): any => {
+      if (!node) return null;
+      if (node.className === "Layer") return node;
+      if (node.children && Array.isArray(node.children)) {
+        return node.children.find((child: any) => child.className === "Layer") ?? null;
+      }
+      return null;
+    };
+
+    const layer = findLayer(data) ?? findLayer({ children: data.children });
+    const children = layer?.children ?? [];
+
+    const getText = (node: any) => {
+      const textNode = node.children?.find(
+        (child: any) => child.className === "Text" && child.attrs?.text,
+      );
+      return textNode?.attrs?.text ?? "";
+    };
+
+    const getRect = (node: any, matcher?: (attrs: any) => boolean) => {
+      const rects = (node.children ?? []).filter(
+        (child: any) => child.className === "Rect",
+      );
+      if (!rects.length) return null;
+      if (!matcher) return rects[0];
+      return rects.find((r: any) => matcher(r.attrs)) ?? null;
+    };
+
+    return children
+      .map((child: any) => {
+        if (child.className !== "Group") return null;
+        const attrs = child.attrs ?? {};
+        const x = attrs.x ?? 0;
+        const y = attrs.y ?? 0;
+        const rotation = attrs.rotation ?? 0;
+
+        const roomRect = getRect(child, (a) => a?.stroke === "#111");
+        if (roomRect) {
+          return {
+            id: roomRect.attrs?.id ?? `room-${Math.random()}`,
+            type: "room",
+            x,
+            y,
+            rotation,
+            width: roomRect.attrs?.width ?? 0,
+            height: roomRect.attrs?.height ?? 0,
+          } as Entity;
+        }
+
+        const tableRect = getRect(child, (a) => a?.fill === "#D8BFA8");
+        if (tableRect) {
+          return {
+            id: tableRect.attrs?.id ?? `table-${Math.random()}`,
+            type: "table",
+            x,
+            y,
+            rotation,
+            width: tableRect.attrs?.width ?? 0,
+            height: tableRect.attrs?.height ?? 0,
+            name: getText(child) || "Table",
+          } as Entity;
+        }
+
+        const doorRect = getRect(child, (a) => a?.fill === "#8b4513");
+        if (doorRect) {
+          return {
+            id: child.attrs?.id ?? `door-${Math.random()}`,
+            type: "door",
+            x,
+            y,
+            rotation,
+            width: doorRect.attrs?.width ?? 0,
+            height: doorRect.attrs?.height ?? 10,
+            name: getText(child) || "Door",
+          } as Entity;
+        }
+
+        const sensorRect = getRect(child, (a) => a?.fill === "rgba(0,0,0,0)");
+        if (sensorRect) {
+          return {
+            id: sensorRect.attrs?.id ?? `sensor-${Math.random()}`,
+            type: "sensor",
+            x,
+            y,
+            rotation,
+            width: sensorRect.attrs?.width ?? 40,
+            height: sensorRect.attrs?.height ?? 40,
+            name: getText(child) || "Sensor",
+          } as Entity;
+        }
+
+        return null;
+      })
+      .filter(Boolean) as Entity[];
+  };
+
+  useEffect(() => {
+    hasLoadedBlueprint.current = false;
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (hasLoadedBlueprint.current) return;
+    if (!blueprintJson) return;
+    const parsed = parseBlueprintEntities(blueprintJson);
+    if (parsed.length) {
+      setEntities(parsed);
+      setSelectedId(null);
+    }
+    hasLoadedBlueprint.current = true;
+  }, [blueprintJson]);
 
   useSelectionTransformer({
     stageRef,
     transformerRef,
     rotateEnabled: selected?.type !== "room",
-    selectedId: selectionLocked ? null : selectedId,
+    selectedId: selectionLocked ? null : effectiveSelectedId,
     deps: [entities, selectionLocked],
   });
 
   const toggleLockSelected = () => {
+    if (readOnly) return;
     if (!selectedId) return;
 
     setEntities((prev) =>
@@ -49,12 +220,14 @@ export default function FloorPlanner() {
   };
 
   const requestDelete = () => {
+    if (readOnly) return;
     if (!selectedId) return;
     setPendingDeleteId(selectedId);
     deleteHandlers.open();
   };
 
   const confirmDelete = () => {
+    if (readOnly) return;
     if (!pendingDeleteId) return;
     setEntities((prev) => prev.filter((e) => e.id !== pendingDeleteId));
     if (selectedId === pendingDeleteId) setSelectedId(null);
@@ -63,6 +236,7 @@ export default function FloorPlanner() {
   };
 
   const rotateSelected = (delta: number) => {
+    if (readOnly) return;
     if (!selected || selected.type !== "table") return;
     if (selected.locked) return;
     setEntities((prev) =>
@@ -75,6 +249,7 @@ export default function FloorPlanner() {
   };
 
   const addItem = (type: "door" | "table" | "sensor") => {
+    if (readOnly) return;
     const base = {
       id: makeId(type),
       type,
@@ -96,107 +271,164 @@ export default function FloorPlanner() {
   };
 
   const updateSelectedName = (name: string) => {
+    if (readOnly) return;
     if (!selectedId) return;
     setEntities((prev) =>
       prev.map((e) => (e.id === selectedId ? { ...e, name } : e)),
     );
   };
 
-  const width = window.innerWidth - 260;
-  const height = window.innerHeight - 40;
+  const leftPanelWidth = showToolbar ? 260 : 0;
+  const width = window.innerWidth - leftPanelWidth;
+  const isConstrained = readOnly || fitToAdminLayout;
+  const height = isConstrained
+    ? window.innerHeight - 60 - 32
+    : window.innerHeight - 40;
 
   const [saveOpened, saveHandlers] = useDisclosure(false);
-  const createRoomMutation = useCreateRoomMutation();
+  const createRoomMutation = useCreateRoomMutation({
+    onSuccess: (data: any) => {
+      onCreated?.(data);
+    },
+  });
   const { spaceId } = useParams();
 
   useKeyboardShortcuts({
-    selected,
+    selected: readOnly ? null : selected,
     onDelete: requestDelete,
     onRotate: rotateSelected,
-    disabled: saveOpened,
+    disabled: saveOpened || readOnly,
   });
 
   return (
-    <div style={{ display: "flex", height: "100vh", padding: 20, gap: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        height: isConstrained ? "calc(100vh - 60px - 32px)" : "100vh",
+        padding: isConstrained ? 0 : 20,
+        gap: 12,
+      }}
+    >
       <DeleteConfirmModal
         opened={deleteOpened}
         onClose={deleteHandlers.close}
         onConfirm={confirmDelete}
       />
 
-      <LeftPanel
-        mode={mode}
-        setMode={setMode}
-        selected={selected}
-        onAddDoor={() => addItem("door")}
-        onAddTable={() => addItem("table")}
-        onAddSensor={() => addItem("sensor")}
-        onRotateLeft={() => rotateSelected(-15)}
-        onRotateRight={() => rotateSelected(15)}
-        onDelete={requestDelete}
-        onExport={() => console.log({ entities })}
-        lockedSelected={!!selected?.locked}
-        onToggleLockSelected={toggleLockSelected}
-        onChangeSelectedName={updateSelectedName}
-        saveOpened={saveOpened}
-        onOpenSave={saveHandlers.open}
-        onCloseSave={saveHandlers.close}
-        onSave={({ name, description }) => {
-          console.log({
-            name,
-            description,
-            spaceId,
-            blueprint: stageRef.current?.findOne(".entities-layer")?.toObject()
-          });
-          createRoomMutation.mutate({
-            name,
-            description,
-            spaceId: spaceId,
-            blueprintJson: stageRef.current?.findOne(".entities-layer")?.toJSON(),
-          });
-        }}
-      />
+      {showToolbar && !readOnly && (
+        <LeftPanel
+          mode={mode}
+          setMode={setMode}
+          selected={selected}
+          onAddDoor={() => addItem("door")}
+          onAddTable={() => addItem("table")}
+          onAddSensor={() => addItem("sensor")}
+          onRotateLeft={() => rotateSelected(-15)}
+          onRotateRight={() => rotateSelected(15)}
+          onDelete={requestDelete}
+          onExport={() => console.log({ entities })}
+          lockedSelected={!!selected?.locked}
+          onToggleLockSelected={toggleLockSelected}
+          onChangeSelectedName={updateSelectedName}
+          saveOpened={saveOpened}
+          onOpenSave={saveHandlers.open}
+          onCloseSave={saveHandlers.close}
+          onSave={({ name, description }) => {
+            console.log({
+              name,
+              description,
+              spaceId,
+              blueprint: stageRef.current?.findOne(".entities-layer")?.toObject(),
+            });
+            createRoomMutation.mutate({
+              name,
+              description,
+              spaceId: spaceId,
+              blueprintJson:
+                stageRef.current?.findOne(".entities-layer")?.toJSON(),
+            });
+          }}
+        />
+      )}
 
-      <Paper withBorder style={{ flex: 1, overflow: "hidden" }}>
+      <Paper
+        withBorder
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        {(title || description) && (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              zIndex: 5,
+              background: "rgba(255, 255, 255, 0.9)",
+              border: "1px solid #e9ecef",
+              borderRadius: 8,
+              padding: "8px 12px",
+              maxWidth: 420,
+            }}
+          >
+            {title && (
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{title}</div>
+            )}
+            {description && (
+              <div style={{ fontSize: 12, color: "#868e96" }}>
+                {description}
+              </div>
+            )}
+          </div>
+        )}
         <CanvasStage
           onReady={({ stage, transformer }) => {
             stageRef.current = stage;
             transformerRef.current = transformer;
           }}
+          readOnly={readOnly}
           width={width}
           height={height}
           mode={mode}
           entities={entities}
           draftRoom={draftRoom}
           onEmptyClick={() => setSelectedId(null)}
-          selectedId={selectedId!}
-          onSelect={(id) => setSelectedId(id)}
-          onMove={(id, pos) =>
+          selectedId={(effectiveSelectedId ?? "") as string}
+          onSelect={(id) => {
+            if (readOnly) return;
+            setSelectedId(id);
+          }}
+          onMove={(id, pos) => {
+            if (readOnly) return;
             setEntities((prev) =>
               prev.map((e) => (e.id === id ? { ...e, ...pos } : e)),
-            )
-          }
-          onResizeRoom={(id, size) =>
+            );
+          }}
+          onResizeRoom={(id, size) => {
+            if (readOnly) return;
             setEntities((prev) =>
               prev.map((e) =>
                 e.id === id && e.type === "room" ? { ...e, ...size } : e,
               ),
-            )
-          }
-          onResizeItem={(id, size) =>
+            );
+          }}
+          onResizeItem={(id, size) => {
+            if (readOnly) return;
             setEntities((prev) =>
               prev.map((e) =>
                 e.id === id && e.type !== "room" ? { ...e, ...size } : e,
               ),
-            )
-          }
+            );
+          }}
           onRoomDrawStart={(pos) => {
-            if (mode !== "room") return;
+            if (readOnly || mode !== "room") return;
             const p = snapPos(pos);
             setDraftRoom({ x: p.x, y: p.y, width: 0, height: 0 });
           }}
           onRoomDrawMove={(pos) => {
-            if (mode !== "room") return;
+            if (readOnly || mode !== "room") return;
             setDraftRoom((prev) => {
               if (!prev) return prev;
               const p = snapPos(pos);
@@ -204,7 +436,7 @@ export default function FloorPlanner() {
             });
           }}
           onRoomDrawEnd={() => {
-            if (mode !== "room" || !draftRoom) return;
+            if (readOnly || mode !== "room" || !draftRoom) return;
 
             const normalized = normalizeRect(draftRoom);
             const w = snap(Math.max(MIN_SIZE_PX, normalized.width));
@@ -229,4 +461,7 @@ export default function FloorPlanner() {
       </Paper>
     </div>
   );
-}
+},
+);
+
+export default FloorPlanner;

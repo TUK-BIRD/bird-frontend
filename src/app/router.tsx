@@ -13,6 +13,7 @@ import RoomSelect from "./pages/admin/RoomSelect";
 import RoomCreate from "./pages/admin/RoomCreate";
 import Members from "./pages/admin/Members";
 import Invitation from "./pages/admin/Invitation";
+import RoomFloorPlan from "./pages/admin/RoomFloorPlan";
 
 export default function Router() {
   return (
@@ -36,6 +37,10 @@ export default function Router() {
           <Route element={<AdminLayout />}>
             <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
             <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
+            <Route
+              path="space/:spaceId/rooms/:roomId"
+              element={<RoomFloorPlan />}
+            />
             <Route path="space/:spaceId/members" element={<Members />} />
           </Route>
         </Route>

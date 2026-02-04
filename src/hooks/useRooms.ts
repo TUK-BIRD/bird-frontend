@@ -3,7 +3,7 @@ import apiClient from "@/api/client";
 
 export default function useRooms(spaceId: string) {
   return useQuery({
-    queryKey: ["rooms"],
+    queryKey: ["rooms", spaceId],
     queryFn: () =>
       apiClient.get(`/space/${spaceId}/rooms`).then((res) => res.data),
     staleTime: 5 * 60 * 1000,
