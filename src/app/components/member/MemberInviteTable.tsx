@@ -12,6 +12,8 @@ import { IconTrash } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import apiClient from "../../../api/client";
 import { useParams } from "react-router";
+import useSpaceUsers from "../../../hooks/useSpaceUsers";
+import { useAuth } from "../../auth/useAuth";
 
 type Invite = {
   id: string;
@@ -26,6 +28,12 @@ export default function MemberInviteTable() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [statusFilter, setStatusFilter] = useState<string | null>(ALL_STATUS);
   const { spaceId } = useParams<{ spaceId: string }>();
+  const { user } = useAuth();
+  const { data: spaceUsers } = useSpaceUsers(spaceId as string);
+
+  const currentUserRole =
+    spaceUsers?.find((item) => item.user?.id === user?.id)?.role ?? null;
+  const isOwner = currentUserRole === "OWNER";
 
   useEffect(() => {
     const getInvitations = async () => {
@@ -79,6 +87,7 @@ export default function MemberInviteTable() {
               <Table.Th>이메일</Table.Th>
               <Table.Th>상태</Table.Th>
               <Table.Th>유효기간</Table.Th>
+              {isOwner && <Table.Th />}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -94,16 +103,18 @@ export default function MemberInviteTable() {
                   <Text fz="sm">{item?.expiresAt}</Text>
                 </Table.Td>
 
-                <Table.Td>
-                  <Group gap={0} justify="flex-end">
-                    <ActionIcon variant="subtle" color="red">
-                      <IconTrash
-                        style={{ width: rem(16), height: rem(16) }}
-                        stroke={1.5}
-                      />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
+                {isOwner && (
+                  <Table.Td>
+                    <Group gap={0} justify="flex-end">
+                      <ActionIcon variant="subtle" color="red">
+                        <IconTrash
+                          style={{ width: rem(16), height: rem(16) }}
+                          stroke={1.5}
+                        />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                )}
               </Table.Tr>
             ))}
           </Table.Tbody>
