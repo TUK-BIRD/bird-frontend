@@ -7,6 +7,7 @@ import AuthLayout from "./layout/AuthLayout";
 import AdminSignIn from "./pages/admin/auth/AdminSignIn";
 import NotFound from "./pages/NotFound";
 import { RequireAuth } from "./components/RequireAuth";
+import { RequireSpaceAccess } from "./components/RequireSpaceAccess";
 import AdminSignUp from "./pages/admin/auth/AdminSignUp";
 import SpaceSelect from "./pages/admin/SpaceSelect";
 import RoomSelect from "./pages/admin/RoomSelect";
@@ -31,18 +32,26 @@ export default function Router() {
             </RequireAuth>
           }
         >
-          <Route path="space/:spaceId/rooms/create" element={<RoomCreate />} />
+          <Route
+            element={
+              <RequireSpaceAccess>
+                <Outlet />
+              </RequireSpaceAccess>
+            }
+          >
+            <Route path="space/:spaceId/rooms/create" element={<RoomCreate />} />
+            <Route element={<AdminLayout />}>
+              <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
+              <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
+              <Route
+                path="space/:spaceId/rooms/:roomId"
+                element={<RoomFloorPlan />}
+              />
+              <Route path="space/:spaceId/members" element={<Members />} />
+            </Route>
+          </Route>
           <Route path="spaces" element={<SpaceSelect />} />
           <Route path="invitations/accept" element={<Invitation />} />
-          <Route element={<AdminLayout />}>
-            <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
-            <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
-            <Route
-              path="space/:spaceId/rooms/:roomId"
-              element={<RoomFloorPlan />}
-            />
-            <Route path="space/:spaceId/members" element={<Members />} />
-          </Route>
         </Route>
         <Route element={<AuthLayout />}>
           <Route path="/admin/auth/sign-in" element={<AdminSignIn />} />
