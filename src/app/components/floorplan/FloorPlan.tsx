@@ -15,6 +15,7 @@ import { LeftPanel } from "./LeftPanel";
 import { CanvasStage } from "./CanvasStage";
 
 import { MIN_SIZE_PX } from "./constants";
+import { GRID_STEP_M } from "./constants";
 import { makeId, normalizeRect, snap, snapPos } from "./utils";
 import { useSelectionTransformer } from "./hooks/useSelectionTransformer";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -24,6 +25,7 @@ import { useParams } from "react-router";
 
 type FloorPlannerProps = {
   showToolbar?: boolean;
+  showSaveButton?: boolean;
   title?: string;
   description?: string | null;
   blueprintJson?: string | object | null;
@@ -41,6 +43,7 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
   (
     {
       showToolbar = true,
+      showSaveButton = true,
       title,
       description,
       blueprintJson,
@@ -54,6 +57,9 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
   const [mode, setMode] = useState<ToolMode>("select");
   const [entities, setEntities] = useState<Entity[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [panEnabled, setPanEnabled] = useState(false);
 
   const [draftRoom, setDraftRoom] = useState<DraftRoom | null>(null);
 
@@ -250,11 +256,17 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
 
   const addItem = (type: "door" | "table" | "sensor") => {
     if (readOnly) return;
+    const viewCenter = {
+      x: (-stagePos.x + width / 2) / scale,
+      y: (-stagePos.y + height / 2) / scale,
+    };
+    const baseX = snap(viewCenter.x);
+    const baseY = snap(viewCenter.y);
     const base = {
       id: makeId(type),
       type,
-      x: 300,
-      y: 200,
+      x: baseX,
+      y: baseY,
       rotation: 0,
       name: type === "door" ? "Door" : type === "table" ? "Table" : "Sensor",
     } as const;
@@ -285,6 +297,10 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
     ? window.innerHeight - 60 - 32
     : window.innerHeight - 40;
 
+  const zoomIn = () => setScale((prev) => Math.min(2.5, +(prev + 0.1).toFixed(2)));
+  const zoomOut = () => setScale((prev) => Math.max(0.4, +(prev - 0.1).toFixed(2)));
+  const resetZoom = () => setScale(1);
+
   const [saveOpened, saveHandlers] = useDisclosure(false);
   const createRoomMutation = useCreateRoomMutation({
     onSuccess: (data: any) => {
@@ -299,6 +315,33 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
     onRotate: rotateSelected,
     disabled: saveOpened || readOnly,
   });
+
+  useEffect(() => {
+    const isTypingTarget = (el: Element | null) => {
+      if (!el) return false;
+      const tag = el.tagName?.toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select";
+    };
+
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.code !== "Space") return;
+      if (isTypingTarget(document.activeElement)) return;
+      ev.preventDefault();
+      setPanEnabled(true);
+    };
+
+    const handleKeyUp = (ev: KeyboardEvent) => {
+      if (ev.code !== "Space") return;
+      setPanEnabled(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   return (
     <div
@@ -348,6 +391,7 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
                 stageRef.current?.findOne(".entities-layer")?.toJSON(),
             });
           }}
+          showSaveButton={showSaveButton}
         />
       )}
 
@@ -357,8 +401,73 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
           flex: 1,
           overflow: "hidden",
           position: "relative",
+          cursor: panEnabled ? "grab" : "default",
         }}
       >
+        <div
+          style={{
+            position: "absolute",
+            bottom: 12,
+            right: 12,
+            zIndex: 6,
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              border: "1px solid #dee2e6",
+              background: "#fff",
+              borderRadius: 6,
+              padding: "4px 8px",
+              fontSize: 12,
+              color: "#495057",
+            }}
+          >
+            Grid: {GRID_STEP_M}m
+          </div>
+          <button
+            type="button"
+            onClick={zoomOut}
+            style={{
+              border: "1px solid #dee2e6",
+              background: "#fff",
+              borderRadius: 6,
+              padding: "4px 8px",
+              cursor: "pointer",
+            }}
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={resetZoom}
+            style={{
+              border: "1px solid #dee2e6",
+              background: "#fff",
+              borderRadius: 6,
+              padding: "4px 8px",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            {Math.round(scale * 100)}%
+          </button>
+          <button
+            type="button"
+            onClick={zoomIn}
+            style={{
+              border: "1px solid #dee2e6",
+              background: "#fff",
+              borderRadius: 6,
+              padding: "4px 8px",
+              cursor: "pointer",
+            }}
+          >
+            +
+          </button>
+        </div>
         {(title || description) && (
           <div
             style={{
@@ -389,6 +498,10 @@ const FloorPlanner = forwardRef<FloorPlannerHandle, FloorPlannerProps>(
             transformerRef.current = transformer;
           }}
           readOnly={readOnly}
+          scale={scale}
+          stagePos={stagePos}
+          onStagePosChange={setStagePos}
+          allowPan={readOnly || panEnabled}
           width={width}
           height={height}
           mode={mode}

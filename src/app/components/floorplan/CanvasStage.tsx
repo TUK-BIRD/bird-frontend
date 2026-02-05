@@ -6,7 +6,7 @@ import { RoomEntity } from "./entities/RoomEntity";
 import { TableEntity } from "./entities/TableEntity";
 import { DoorEntity } from "./entities/DoorEntity";
 import { SensorEntity } from "./entities/SensorEntity";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 type CanvasStageRefs = {
   stage: Konva.Stage | null;
@@ -34,9 +34,46 @@ export function CanvasStage(props: {
   onResizeRoom: (id: string, size: { width: number; height: number }) => void;
   onResizeItem: (id: string, size: { width: number; height: number }) => void;
   readOnly?: boolean;
+  scale?: number;
+  stagePos?: { x: number; y: number };
+  onStagePosChange?: (pos: { x: number; y: number }) => void;
+  allowPan?: boolean;
 }) {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+
+  const scale = props.scale ?? 1;
+  const stagePos = props.stagePos ?? { x: 0, y: 0 };
+
+  const gridLines = useMemo(() => {
+    const left = -stagePos.x / scale;
+    const top = -stagePos.y / scale;
+    const right = left + props.width / scale;
+    const bottom = top + props.height / scale;
+
+    const startX = Math.floor(left / GRID_SIZE_PX) * GRID_SIZE_PX;
+    const endX = Math.ceil(right / GRID_SIZE_PX) * GRID_SIZE_PX;
+    const startY = Math.floor(top / GRID_SIZE_PX) * GRID_SIZE_PX;
+    const endY = Math.ceil(bottom / GRID_SIZE_PX) * GRID_SIZE_PX;
+
+    const vertical = [];
+    for (let x = startX; x <= endX; x += GRID_SIZE_PX) {
+      vertical.push({
+        key: `v-${x}`,
+        points: [x, top, x, bottom],
+      });
+    }
+
+    const horizontal = [];
+    for (let y = startY; y <= endY; y += GRID_SIZE_PX) {
+      horizontal.push({
+        key: `h-${y}`,
+        points: [left, y, right, y],
+      });
+    }
+
+    return { vertical, horizontal };
+  }, [props.width, props.height, scale, stagePos]);
   const orderedEntities = [...props.entities].sort((a, b) => {
     if (a.type === "room" && b.type !== "room") return -1;
     if (a.type !== "room" && b.type === "room") return 1;
@@ -55,6 +92,15 @@ export function CanvasStage(props: {
       ref={stageRef}
       width={props.width}
       height={props.height}
+      scaleX={props.scale}
+      scaleY={props.scale}
+      x={props.stagePos?.x ?? 0}
+      y={props.stagePos?.y ?? 0}
+      draggable={props.allowPan}
+      onDragEnd={(e) => {
+        if (!props.allowPan) return;
+        props.onStagePosChange?.({ x: e.target.x(), y: e.target.y() });
+      }}
       onMouseDown={(e: any) => {
         if (props.readOnly) return;
         const stage = e.target.getStage() as Konva.Stage;
@@ -65,7 +111,7 @@ export function CanvasStage(props: {
         }
 
         if (props.mode === "room") {
-          const p = stage.getPointerPosition();
+          const p = stage.getRelativePointerPosition();
           if (!p) return;
           props.onRoomDrawStart(p);
         }
@@ -74,7 +120,7 @@ export function CanvasStage(props: {
         if (props.readOnly) return;
         if (props.mode !== "room") return;
         const stage = e.target.getStage() as Konva.Stage;
-        const p = stage.getPointerPosition();
+        const p = stage.getRelativePointerPosition();
         if (!p) return;
         props.onRoomDrawMove(p);
       }}
@@ -87,19 +133,19 @@ export function CanvasStage(props: {
     >
       <Layer name="grid-layer">
         {/* grid */}
-        {Array.from({ length: 200 }).map((_, i) => (
+        {gridLines.vertical.map((line) => (
           <Line
-            key={`v-${i}`}
-            points={[i * GRID_SIZE_PX, 0, i * GRID_SIZE_PX, props.height]}
+            key={line.key}
+            points={line.points}
             stroke="#eee"
             strokeWidth={1}
             listening={false}
           />
         ))}
-        {Array.from({ length: 200 }).map((_, i) => (
+        {gridLines.horizontal.map((line) => (
           <Line
-            key={`h-${i}`}
-            points={[0, i * GRID_SIZE_PX, props.width, i * GRID_SIZE_PX]}
+            key={line.key}
+            points={line.points}
             stroke="#eee"
             strokeWidth={1}
             listening={false}

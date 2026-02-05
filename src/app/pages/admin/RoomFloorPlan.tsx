@@ -19,11 +19,21 @@ export default function RoomFloorPlan() {
 
   const updateRoomMutation = useMutation({
     mutationFn: (blueprintJson: string) =>
-      apiClient.put(`/spaces/${spaceId}/rooms/${roomId}`, {
+      apiClient.patch(`/spaces/${spaceId}/rooms/${roomId}`, {
         name: room?.name,
         description: room?.description,
         blueprintJson,
       }),
+    onSuccess: (_res, blueprintJson) => {
+      queryClient.setQueryData(["room", spaceId, roomId], (prev: any) =>
+        prev
+          ? {
+              ...prev,
+              blueprintJson,
+            }
+          : prev,
+      );
+    },
   });
 
   const deleteRoomMutation = useMutation({
@@ -127,6 +137,7 @@ export default function RoomFloorPlan() {
       <FloorPlanner
         ref={plannerRef}
         showToolbar={isEditing}
+        showSaveButton={false}
         title={room.name}
         description={room.description}
         blueprintJson={room.blueprintJson}

@@ -44,6 +44,7 @@ export function LeftPanel(props: {
     name: string;
     description: string;
   }) => void;
+  showSaveButton?: boolean;
 }) {
   const { saveOpened, onSave, onOpenSave, onCloseSave } = props;
 
@@ -112,42 +113,44 @@ export function LeftPanel(props: {
         <Button color="red" disabled={!props.selected} onClick={props.onDelete}>
           Delete selected
         </Button>
-        <>
-          <Button
-            fullWidth
-            leftSection={<IconDeviceFloppy size={16} />}
-            onClick={onOpenSave}
-          >
-            Save
-          </Button>
+        {props.showSaveButton !== false && (
+          <>
+            <Button
+              fullWidth
+              leftSection={<IconDeviceFloppy size={16} />}
+              onClick={onOpenSave}
+            >
+              Save
+            </Button>
 
-          <Modal opened={saveOpened} onClose={onCloseSave} title="Save project">
-            <Stack>
-              <TextInput
-                label="Room Name"
-                placeholder="예: 501호"
-                value={roomName}
-                onChange={(e) => setRoomName(e.currentTarget.value)}
-                autoFocus
-              />
-              <Textarea
-                label="Room Description"
-                placeholder="예: 501호의 도면입니다"
-                value={roomDescription}
-                onChange={(e) => setRoomDescription(e.currentTarget.value)}
-              />
+            <Modal opened={saveOpened} onClose={onCloseSave} title="Save project">
+              <Stack>
+                <TextInput
+                  label="Room Name"
+                  placeholder="예: 501호"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.currentTarget.value)}
+                  autoFocus
+                />
+                <Textarea
+                  label="Room Description"
+                  placeholder="예: 501호의 도면입니다"
+                  value={roomDescription}
+                  onChange={(e) => setRoomDescription(e.currentTarget.value)}
+                />
 
-              <Group justify="flex-end">
-                <Button variant="default" onClick={onCloseSave}>
-                  Cancel
-                </Button>
-                <Button onClick={handleConfirm} disabled={!roomName.trim()}>
-                  Save
-                </Button>
-              </Group>
-            </Stack>
-          </Modal>
-        </>
+                <Group justify="flex-end">
+                  <Button variant="default" onClick={onCloseSave}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleConfirm} disabled={!roomName.trim()}>
+                    Save
+                  </Button>
+                </Group>
+              </Stack>
+            </Modal>
+          </>
+        )}
       </Stack>
 
       <Text size="xs" c="dimmed" mt={12}>
