@@ -1,5 +1,4 @@
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -16,7 +15,6 @@ import {
   Textarea,
   TextInput,
   Title,
-  ThemeIcon,
 } from "@mantine/core";
 import useSpaces from "../../../hooks/useSpaces";
 import { useNavigate } from "react-router";
@@ -25,12 +23,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import apiClient from "@/api/client";
 import { useLogout } from "@/app/pages/admin/hooks/useLogout";
-import {
-  IconArrowRight,
-  IconBuilding,
-  IconLogout,
-  IconPlus,
-} from "@tabler/icons-react";
+import { IconArrowRight, IconLogout, IconPlus } from "@tabler/icons-react";
 
 export default function SpaceSelect() {
   const { data: spaces, isLoading: isSpaceLoading } = useSpaces();
@@ -76,34 +69,16 @@ export default function SpaceSelect() {
     <Box
       style={{
         minHeight: "100dvh",
+        background: "#f6f5f1",
       }}
     >
       <Container size="lg" py={40}>
         <Stack gap="xl">
-          <Card
-            radius="lg"
-            withBorder
-            style={{
-              borderColor: "#ead7b7",
-            }}
-          >
+          <Card radius="md" withBorder>
             <Group justify="space-between" align="center" wrap="wrap">
               <Stack gap={6}>
-                <Text
-                  tt="uppercase"
-                  fw={700}
-                  fz={12}
-                  c="dimmed"
-                  style={{ letterSpacing: 2 }}
-                >
-                  Admin Spaces
-                </Text>
                 <Title
                   order={1}
-                  style={{
-                    fontFamily:
-                      "Space Grotesk, ui-sans-serif, system-ui, sans-serif",
-                  }}
                 >
                   안녕하세요 {user?.name}님
                 </Title>
@@ -133,31 +108,12 @@ export default function SpaceSelect() {
 
           <Stack gap="sm">
             <Group justify="space-between" align="center" wrap="wrap">
-              <Group gap="sm">
-                <ThemeIcon radius="xl" variant="light" color="dark">
-                  <IconBuilding size={18} />
-                </ThemeIcon>
-                <Title
-                  order={2}
-                  style={{
-                    fontFamily:
-                      "Space Grotesk, ui-sans-serif, system-ui, sans-serif",
-                  }}
-                >
-                  내가 관리자인 공간들
-                </Title>
-              </Group>
-              <Badge variant="outline" color="dark">
-                {spaces?.length ?? 0} spaces
-              </Badge>
+              <Title order={2}>내가 관리자인 공간들</Title>
             </Group>
             <Divider />
             {spaces?.length === 0 ? (
-              <Card withBorder radius="lg" p="xl">
+              <Card withBorder radius="md" p="xl">
                 <Stack gap="xs" align="center">
-                  <ThemeIcon radius="xl" size={48} variant="light" color="dark">
-                    <IconBuilding size={24} />
-                  </ThemeIcon>
                   <Title order={4}>아직 공간이 없습니다</Title>
                   <Text c="dimmed" ta="center">
                     첫 번째 공간을 만들어 팀을 초대해 보세요.
@@ -171,21 +127,14 @@ export default function SpaceSelect() {
                 </Stack>
               </Card>
             ) : (
-              <SimpleGrid
-                cols={{ base: 1, sm: 2, lg: 3 }}
-                spacing="md"
-              >
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
                 {spaces?.map((space) => (
                   <Card
                     key={space.id}
                     withBorder
-                    radius="lg"
-                    shadow="sm"
+                    radius="md"
                     style={{
                       cursor: "pointer",
-                      borderColor: "#e6e1d8",
-                      background:
-                        "linear-gradient(180deg, #ffffff 0%, #fbfaf7 100%)",
                     }}
                     onClick={() =>
                       navigate(`/admin/space/${space.id}/dashboard`)
@@ -199,9 +148,9 @@ export default function SpaceSelect() {
                         {space.description || "설명이 아직 없습니다."}
                       </Text>
                       <Group justify="space-between" mt="sm">
-                        <Badge variant="light" color="dark">
+                        <Text size="sm" c="dimmed">
                           관리자
-                        </Badge>
+                        </Text>
                         <Button
                           variant="subtle"
                           rightSection={<IconArrowRight size={16} />}

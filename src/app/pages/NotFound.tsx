@@ -1,20 +1,14 @@
-import {
-  Container,
-  Title,
-  Text,
-  Button,
-  Center,
-  Stack,
-} from "@mantine/core";
+import { Box, Button, Center, Container, Stack, Text, Title } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { Link } from "react-router";
 
 export default function NotFound() {
   return (
-    <Center h="100vh" bg="gray.0">
-      <Container size="sm" ta="center">
+    <Box style={{ minHeight: "100dvh", background: "#f6f5f1" }}>
+      <Center h="100dvh">
+        <Container size="sm" ta="center">
         <Stack align="center" gap="lg">
-          <IconAlertCircle size={64} color="red" />
+          <IconAlertCircle size={56} color="#2b2b2b" />
           <div>
             <Title order={1}>404</Title>
             <Title order={2} c="dimmed" size="h4" mt={0}>
@@ -27,14 +21,14 @@ export default function NotFound() {
           <Button
             component={Link}
             to="/admin/spaces"
-            size="lg"
-            variant="gradient"
-            gradient={{ from: "blue", to: "cyan" }}
+            size="md"
+            variant="default"
           >
             홈으로 돌아가기
           </Button>
         </Stack>
       </Container>
-    </Center>
+      </Center>
+    </Box>
   );
 }
