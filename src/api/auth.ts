@@ -7,8 +7,10 @@ export const signUp = (payload: RegisterRequest) =>
 
 
 export const signIn = async (payload: LoginRequest) => {
-  await axios.get("http://api.bird.test/sanctum/csrf-cookie", {
-    withCredentials: true
+  const apiBaseUrl = import.meta.env.VITE_API_URL ?? "";
+  const csrfBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
+  await axios.get(`${csrfBaseUrl}/sanctum/csrf-cookie`, {
+    withCredentials: true,
   });
   
   return apiClient.post("/auth/login", payload).then((res) => res.data);
