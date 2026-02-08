@@ -65,6 +65,8 @@ export default function MemberInviteTable() {
     return invites.filter((invite) => invite.status === statusFilter);
   }, [invites, statusFilter]);
 
+  const columnCount = isOwner ? 4 : 3;
+
   return (
     <Paper shadow="xs" p="md" withBorder>
       <Group justify="space-between" mb="md">
@@ -91,32 +93,42 @@ export default function MemberInviteTable() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {filteredInvites?.map((item) => (
-              <Table.Tr key={item?.id}>
-                <Table.Td>
-                  <Text fz="sm">{item?.email}</Text>
+            {filteredInvites?.length === 0 ? (
+              <Table.Tr>
+                <Table.Td colSpan={columnCount}>
+                  <Text c="dimmed" ta="center" fz="sm">
+                    초대 목록이 비어 있습니다.
+                  </Text>
                 </Table.Td>
-                <Table.Td>
-                  <Text fz="sm">{item?.status}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text fz="sm">{item?.expiresAt}</Text>
-                </Table.Td>
-
-                {isOwner && (
-                  <Table.Td>
-                    <Group gap={0} justify="flex-end">
-                      <ActionIcon variant="subtle" color="red">
-                        <IconTrash
-                          style={{ width: rem(16), height: rem(16) }}
-                          stroke={1.5}
-                        />
-                      </ActionIcon>
-                    </Group>
-                  </Table.Td>
-                )}
               </Table.Tr>
-            ))}
+            ) : (
+              filteredInvites?.map((item) => (
+                <Table.Tr key={item?.id}>
+                  <Table.Td>
+                    <Text fz="sm">{item?.email}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fz="sm">{item?.status}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text fz="sm">{item?.expiresAt}</Text>
+                  </Table.Td>
+
+                  {isOwner && (
+                    <Table.Td>
+                      <Group gap={0} justify="flex-end">
+                        <ActionIcon variant="subtle" color="red">
+                          <IconTrash
+                            style={{ width: rem(16), height: rem(16) }}
+                            stroke={1.5}
+                          />
+                        </ActionIcon>
+                      </Group>
+                    </Table.Td>
+                  )}
+                </Table.Tr>
+              ))
+            )}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
