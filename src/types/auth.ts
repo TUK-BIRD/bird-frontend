@@ -8,7 +8,7 @@ export interface RegisterRequest {
   password: string;
   passwordConfirmation: string;
   name: string;
-  spaceName: string;
-  spaceDescription: string;
+  spaceName?: string;
+  spaceDescription?: string;
+  skip_space_create?: boolean;
 }
-
