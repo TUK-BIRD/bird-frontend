@@ -151,7 +151,7 @@ export default function AdminLayout() {
       </AppShell.Navbar>
 
       {/* 메인 콘텐츠 */}
-      <AppShell.Main>
+      <AppShell.Main style={{ background: "#FAFAF8"}}>
         <Outlet /> {/* 여기서 각 페이지 컴포넌트가 렌더링됩니다 */}
       </AppShell.Main>
     </AppShell>

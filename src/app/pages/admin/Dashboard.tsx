@@ -21,8 +21,8 @@ const hourlyUsage = [40, 28, 32, 20, 12, 24, 30, 22, 18, 26];
 
 export default function Dashboard() {
   return (
-    <Box style={{ minHeight: "100dvh" }}>
-      <Container size="xl">
+    <Box style={{ minHeight: "100dvh", background: "#FAFAF8" }}>
+      <Container size="xl" mt={"12"}>
         <Stack gap="sm">
           <Stack gap={4}>
             <Title order={1}>대시보드</Title>
@@ -75,7 +75,8 @@ export default function Dashboard() {
                       strokeWidth="3"
                       points={weeklyUsage
                         .map((value, index) => {
-                          const x = (index / (weeklyUsage.length - 1)) * 560 + 20;
+                          const x =
+                            (index / (weeklyUsage.length - 1)) * 560 + 20;
                           const y = 160 - (value / 50) * 120;
                           return `${x},${y}`;
                         })
@@ -115,11 +116,7 @@ export default function Dashboard() {
                     오늘
                   </Text>
                 </Group>
-                <Group
-                  gap={10}
-                  align="flex-end"
-                  style={{ height: 180 }}
-                >
+                <Group gap={10} align="flex-end" style={{ height: 180 }}>
                   {hourlyUsage.map((value, index) => (
                     <Box
                       key={`${value}-${index}`}
