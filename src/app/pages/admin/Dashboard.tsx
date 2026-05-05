@@ -1,33 +1,15 @@
-import {
-  Box,
-  Card,
-  Container,
-  Group,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-
-const kpiData = [
-  { label: "현재 인원", value: "128", change: "+12%" },
-  { label: "혼잡도", value: "68%", change: "-4%" },
-  { label: "가동 중인 방", value: "12", change: "+2" },
-  { label: "최대 혼잡 시간", value: "16:00", change: "오늘" },
-];
-
-const weeklyUsage = [18, 24, 20, 32, 40, 36, 44];
-const hourlyUsage = [40, 28, 32, 20, 12, 24, 30, 22, 18, 26];
+import { Box, Container, Stack } from "@mantine/core";
+import BleAnchorSetChartPanel from "./BleAnchorSetChartPanel";
 
 export default function Dashboard() {
   return (
     <Box style={{ minHeight: "100dvh", background: "#FAFAF8" }}>
       <Container size="xl" mt={"12"}>
         <Stack gap="sm">
-          <Stack gap={4}>
+          {/* <Stack gap={4}>
             <Title order={1}>대시보드</Title>
             <Text c="dimmed">공간 운영 현황을 한눈에 확인하세요.</Text>
-          </Stack>
+          </Stack>₩
 
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
             {kpiData.map((item) => (
@@ -165,7 +147,8 @@ export default function Dashboard() {
                 </Group>
               </Stack>
             </Stack>
-          </Card>
+          </Card> */}
+          <BleAnchorSetChartPanel />
         </Stack>
       </Container>
     </Box>

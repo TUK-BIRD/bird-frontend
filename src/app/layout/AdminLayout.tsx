@@ -18,6 +18,7 @@ import {
   IconLayoutDashboard,
   IconLogout,
   IconPlus,
+  IconSettings,
   IconUsers,
 } from "@tabler/icons-react";
 import { useLogout } from "@/app/pages/admin/hooks/useLogout";
@@ -45,7 +46,29 @@ export default function AdminLayout() {
       label: "대시보드",
       path: `/admin/space/${spaceId}/dashboard`,
       icons: IconLayoutDashboard,
-      description: "전체 데이터 한눈에 보기",
+      description: "운영 차트와 비교 차트 보기",
+      children: [
+        {
+          label: "종합 대시보드",
+          path: `/admin/space/${spaceId}/dashboard/overview`,
+        },
+        {
+          label: "Anchor Set Chart",
+          path: `/admin/space/${spaceId}/dashboard`,
+        },
+        {
+          label: "BLE Compare Chart",
+          path: `/admin/space/${spaceId}/dashboard/ble-compare`,
+        },
+        {
+          label: "Location Estimates",
+          path: `/admin/space/${spaceId}/dashboard/location-estimates`,
+        },
+        {
+          label: "Location Heatmap",
+          path: `/admin/space/${spaceId}/dashboard/location-heatmap`,
+        },
+      ],
     },
     {
       label: "방 관리",
@@ -69,6 +92,12 @@ export default function AdminLayout() {
       path: `/admin/space/${spaceId}/members`,
       icons: IconUsers,
       description: "멤버 권한 설정 및 수정",
+    },
+    {
+      label: "설정",
+      path: `/admin/space/${spaceId}/settings`,
+      icons: IconSettings,
+      description: "운영 설정 관리",
     },
   ];
 
