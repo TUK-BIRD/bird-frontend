@@ -9,7 +9,7 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import type { Entity, ToolMode } from "../../../types/types";
+import type { Entity, ToolMode } from "./types";
 import {
   IconCpu,
   IconDeviceFloppy,
@@ -17,7 +17,6 @@ import {
   IconPicnicTable,
 } from "@tabler/icons-react";
 import { GRID_SIZE_PX, GRID_STEP_M } from "./constants";
-import { useDisclosure } from "@mantine/hooks";
 import { useState } from "react";
 
 export function LeftPanel(props: {

@@ -630,7 +630,9 @@ export default function BleDashboardPanel() {
                   min={1}
                   max={500}
                   value={limit}
-                  onChange={(value) => setLimit(value ?? 50)}
+                  onChange={(value) =>
+                    setLimit(typeof value === "number" ? value : 50)
+                  }
                 />
                 <Button onClick={() => classicQuery.refetch()}>
                   새로 고침

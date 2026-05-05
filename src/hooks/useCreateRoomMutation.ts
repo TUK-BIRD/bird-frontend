@@ -1,5 +1,5 @@
 import apiClient from "@/api/client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
 
 type SaveRoomBody = {
   name: string;
@@ -13,6 +13,8 @@ async function createRoom(body: SaveRoomBody) {
   return res.data;
 }
 
-export function useCreateRoomMutation(options?: Parameters<typeof useMutation>[0]) {
+export function useCreateRoomMutation(
+  options?: UseMutationOptions<unknown, Error, SaveRoomBody>
+) {
   return useMutation({ mutationFn: createRoom, ...options });
 }

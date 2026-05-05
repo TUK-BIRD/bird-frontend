@@ -27,7 +27,7 @@ import { useAuth } from "../../auth/useAuth";
 export function MemberTable() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const params = useParams();
-  const { data: space_users, isLoading } = useSpaceUsers(
+  const { data: space_users } = useSpaceUsers(
     params.spaceId as string,
   );
   const queryClient = useQueryClient();
