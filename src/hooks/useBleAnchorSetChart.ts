@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/client";
 
 export interface BleAnchorSetMatchedDevice {
@@ -95,10 +95,10 @@ export default function useBleAnchorSetChart(params: BleAnchorSetChartRequest) {
         `/spaces/${spaceId}/rooms/${roomId}/ble_scan_events/anchor-set-chart?${query.toString()}`
       );
 
-      return response.data;
+      return response.data as BleAnchorSetChartResponse;
     },
     enabled: isReady,
     staleTime: 60 * 1000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 }

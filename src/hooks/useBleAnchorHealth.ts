@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/client";
 
 export type HealthState = "online" | "degraded" | "offline" | "unknown";
@@ -48,9 +48,9 @@ export default function useBleAnchorHealth(params: BleAnchorHealthRequest) {
     queryFn: () =>
       apiClient
         .get(`/spaces/${spaceId}/rooms/${roomId}/ble_anchors/health`)
-        .then((res) => res.data),
+        .then((res) => res.data as RoomAnchorHealthResponse),
     enabled: isReady,
     staleTime: 30 * 1000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 }

@@ -12,12 +12,10 @@ import {
   Alert,
   Paper,
   SimpleGrid,
-  Group,
-  ThemeIcon,
   Badge,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconMail, IconLock, IconSparkles, IconShieldLock } from "@tabler/icons-react";
+import { IconMail, IconLock, IconSparkles } from "@tabler/icons-react";
 import useSignIn from "../hooks/useSignIn";
 import { Link, useLocation, useNavigate } from "react-router";
 

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/client";
 
 export interface BleDashboardRequest {
@@ -130,9 +130,9 @@ export default function useBleDashboard(params: BleDashboardRequest) {
         .get(`/spaces/${spaceId}/rooms/${roomId}/ble_scan_events/dashboard`, {
           params: { since, until, limit, bucket_minutes: bucketMinutes },
         })
-        .then((res) => res.data),
+        .then((res) => res.data as BleDashboardResponse),
     enabled: isEnabled,
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 }

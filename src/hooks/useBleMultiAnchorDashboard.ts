@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import apiClient from "@/api/client";
 
 export interface BleMultiAnchorDashboardRequest {
@@ -65,10 +65,9 @@ export default function useBleMultiAnchorDashboard(
             params: { since, until, limit, windowSeconds },
           }
         )
-        .then((res) => res.data),
+        .then((res) => res.data as BleMultiAnchorDashboardResponse),
     enabled: isReady,
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 }
-
