@@ -31,7 +31,7 @@ import {
 import type { Room } from "@/types/room";
 
 const HEATMAP_FRAME_MINUTES = 10;
-const HEATMAP_MINIMUM_CONFIDENCE = 0.9;
+const HEATMAP_MINIMUM_CONFIDENCE = 0.7;
 const DEFAULT_HEATMAP_CELL_SIZE = 1;
 
 const heatmapCellSizeOptions = ["0.25", "0.5", "1", "2"];
