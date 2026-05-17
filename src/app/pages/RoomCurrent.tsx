@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import {
+  Accordion,
+  Badge,
   Box,
   Button,
   Card,
@@ -8,12 +10,20 @@ import {
   Container,
   Group,
   Loader,
+  SegmentedControl,
   Stack,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconCalendar, IconRefresh } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconCalendar,
+  IconClockHour4,
+  IconHistory,
+  IconRefresh,
+  IconUsers,
+} from "@tabler/icons-react";
 import {
   BarElement,
   CategoryScale,
@@ -31,6 +41,8 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { fetchBleLocationEstimates } from "@/hooks/useBleLocationEstimates";
 import useRoom from "@/hooks/useRoom";
+import useWeeklyEstimates from "@/hooks/useWeeklyEstimates";
+import type { WeeklyEstimateDay } from "@/hooks/useWeeklyEstimates";
 import type { Room } from "@/types/room";
 
 ChartJS.register(
@@ -42,6 +54,10 @@ ChartJS.register(
   ChartTooltip,
   Legend,
 );
+
+const DAY_OF_WEEK_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const getDayOfWeekValue = (label: string): number =>
+  DAY_OF_WEEK_LABELS.indexOf(label as (typeof DAY_OF_WEEK_LABELS)[number]);
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 const ACTUAL_WINDOW_MINUTES = 10;
@@ -97,120 +113,154 @@ interface ActualEstimateFrame {
   until: string;
 }
 
-const buildTenMinuteFrames = (dateInput: string) => {
+const buildHourlyFrames = (dateInput: string) => {
   const selected = parseLocalDateInput(dateInput);
   if (!selected) return [];
 
   const frames: ActualEstimateFrame[] = [];
   const cursor = new Date(selected);
 
-  for (let index = 0; index < 24 * 6; index += 1) {
+  for (let index = 0; index < 24; index += 1) {
     const since = new Date(cursor);
     const until = new Date(cursor);
-    until.setMinutes(until.getMinutes() + ACTUAL_WINDOW_MINUTES);
+    until.setHours(until.getHours() + 1);
 
     frames.push({
       index,
-      time: `${pad(since.getHours())}:${pad(since.getMinutes())}`,
+      time: `${pad(since.getHours())}:00`,
       since: toIsoWithOffset(since),
       until: toIsoWithOffset(until),
     });
 
-    cursor.setMinutes(cursor.getMinutes() + ACTUAL_WINDOW_MINUTES);
+    cursor.setHours(cursor.getHours() + 1);
   }
 
   return frames;
 };
 
-interface HourlyLocationEstimateChartProps {
-  title: string;
-  description: string;
-  predictionData?: DailyEstimateResponse;
-  actualFrames: ActualEstimateFrame[];
-  actualValues: Array<number | null>;
+const groupSlotsByHour = (slots: WeeklyEstimateDay["slots"]) => {
+  const hourMap = new Map<
+    string,
+    { estimated: number[]; avg: number[]; max: number[] }
+  >();
+
+  for (const slot of slots) {
+    const hour = slot.time.slice(0, 2) + ":00";
+    if (!hourMap.has(hour)) {
+      hourMap.set(hour, { estimated: [], avg: [], max: [] });
+    }
+    const bucket = hourMap.get(hour)!;
+    bucket.estimated.push(slot.estimatedDeviceCount);
+    bucket.avg.push(slot.avgDeviceCount);
+    bucket.max.push(slot.maxDeviceCount);
+  }
+
+  const hours = Array.from(hourMap.keys()).sort();
+  return hours.map((hour) => {
+    const bucket = hourMap.get(hour)!;
+    const avg = (arr: number[]) =>
+      arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    return {
+      time: hour,
+      estimatedDeviceCount: Math.round(avg(bucket.estimated)),
+      avgDeviceCount: Math.round(avg(bucket.avg) * 10) / 10,
+      maxDeviceCount: Math.max(...bucket.max),
+    };
+  });
+};
+
+const getBusiestHour = (
+  hourlyData: ReturnType<typeof groupSlotsByHour>,
+) => {
+  if (!hourlyData.length) return null;
+  let peak = hourlyData[0];
+  for (const h of hourlyData) {
+    if (h.estimatedDeviceCount > peak.estimatedDeviceCount) peak = h;
+  }
+  return peak;
+};
+
+const getBusiestHourFromActual = (
+  frames: ActualEstimateFrame[],
+  values: Array<number | null>,
+) => {
+  let peakValue = -1;
+  let peakTime = "";
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] !== null && values[i]! > peakValue) {
+      peakValue = values[i]!;
+      peakTime = frames[i]?.time ?? "";
+    }
+  }
+  return peakValue >= 0 ? { time: peakTime, value: peakValue } : null;
+};
+
+interface WeeklyChartProps {
+  weeklyDay: WeeklyEstimateDay | null;
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
   errorMessage?: string;
 }
 
-function HourlyLocationEstimateChart({
-  title,
-  description,
-  predictionData,
-  actualFrames,
-  actualValues,
+function WeeklyChart({
+  weeklyDay,
   isLoading,
   isFetching,
   isError,
   errorMessage,
-}: HourlyLocationEstimateChartProps) {
-  const predictions = predictionData?.estimates ?? [];
-  const labels = predictions.length
-    ? predictions.map((estimate) => estimate.time)
-    : actualFrames.map((frame) => frame.time);
-  const predictionValues = labels.map(
-    (label) =>
-      predictions.find((estimate) => estimate.time === label)
-        ?.estimated_device_count ?? null,
+}: WeeklyChartProps) {
+  const hourlyData = useMemo(
+    () => groupSlotsByHour(weeklyDay?.slots ?? []),
+    [weeklyDay],
   );
-  const actualValueByTime = new Map(
-    actualFrames.map((frame, index) => [frame.time, actualValues[index]]),
-  );
-  const alignedActualValues = labels.map((label) => actualValueByTime.get(label) ?? null);
-  const numericPredictionValues = predictionValues.filter(
-    (value): value is number => value !== null,
-  );
-  const numericActualValues = alignedActualValues.filter(
-    (value): value is number => value !== null,
-  );
-  const predictionPeak = numericPredictionValues.length
-    ? Math.max(...numericPredictionValues)
-    : 0;
-  const actualPeak = numericActualValues.length ? Math.max(...numericActualValues) : 0;
-  const predictionPeakTime =
-    labels[predictionValues.findIndex((value) => value === predictionPeak)];
-  const actualPeakTime =
-    labels[alignedActualValues.findIndex((value) => value === actualPeak)];
-  const chartData: ChartData<"bar" | "line", Array<number | null>, string> = {
+  const labels = hourlyData.map((h) => h.time);
+  const busiest = useMemo(() => getBusiestHour(hourlyData), [hourlyData]);
+
+  const chartData: ChartData<"bar" | "line", number[], string> = {
     labels,
     datasets: [
       {
         type: "bar" as const,
-        label: "예측",
-        data: predictionValues,
-        backgroundColor: "rgba(13, 148, 136, 0.22)",
-        borderColor: "rgba(15, 118, 110, 0.55)",
+        label: "예측 인원",
+        data: hourlyData.map((h) => h.estimatedDeviceCount),
+        backgroundColor: "rgba(13, 148, 136, 0.25)",
+        borderColor: "rgba(15, 118, 110, 0.6)",
         borderWidth: 1,
-        borderRadius: 4,
-        barPercentage: 0.92,
-        categoryPercentage: 0.86,
+        borderRadius: 6,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
       },
       {
         type: "line" as const,
-        label: "실측",
-        data: alignedActualValues,
-        backgroundColor: "rgba(37, 99, 235, 0.12)",
-        borderColor: "#2563eb",
-        borderWidth: 2.5,
-        pointBackgroundColor: "#2563eb",
-        pointBorderColor: "#ffffff",
-        pointBorderWidth: 2,
+        label: "평균",
+        data: hourlyData.map((h) => h.avgDeviceCount),
+        borderColor: "#f59e0b",
+        borderWidth: 2,
         pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHitRadius: 16,
-        tension: 0.42,
-        fill: true,
+        pointHoverRadius: 4,
+        tension: 0.4,
+        fill: false,
+      },
+      {
+        type: "line" as const,
+        label: "최대",
+        data: hourlyData.map((h) => h.maxDeviceCount),
+        borderColor: "#ef4444",
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.4,
+        fill: false,
       },
     ],
   };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      intersect: false,
-      mode: "index" as const,
-    },
+    interaction: { intersect: false, mode: "index" as const },
     plugins: {
       legend: {
         display: true,
@@ -227,48 +277,26 @@ function HourlyLocationEstimateChart({
         borderColor: "#1f2937",
         borderWidth: 1,
         cornerRadius: 8,
-        displayColors: true,
         padding: 12,
         callbacks: {
-          title: (items: TooltipItem<"bar" | "line">[]) => {
-            const index = items[0]?.dataIndex ?? 0;
-            return labels[index] ?? "";
-          },
+          title: (items: TooltipItem<"bar" | "line">[]) =>
+            labels[items[0]?.dataIndex ?? 0] ?? "",
           label: (item: TooltipItem<"bar" | "line">) =>
-            `${item.dataset.label}: ${
-              item.raw === null ? "-" : formatNumber(Number(item.raw))
-            }`,
+            `${item.dataset.label}: ${formatNumber(item.parsed.y)}`,
         },
       },
     },
     scales: {
       x: {
-        border: {
-          display: false,
-        },
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: "#64748b",
-          maxRotation: 0,
-          autoSkip: true,
-          autoSkipPadding: 18,
-        },
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: "#64748b", maxRotation: 0, autoSkip: true, autoSkipPadding: 24 },
       },
       y: {
         beginAtZero: true,
-        border: {
-          display: false,
-        },
-        ticks: {
-          display: false,
-          precision: 0,
-        },
-        grid: {
-          color: "rgba(148, 163, 184, 0.18)",
-          drawTicks: false,
-        },
+        border: { display: false },
+        ticks: { display: false, precision: 0 },
+        grid: { color: "rgba(148, 163, 184, 0.18)", drawTicks: false },
       },
     },
   };
@@ -276,7 +304,7 @@ function HourlyLocationEstimateChart({
   return (
     <Card
       withBorder
-      radius="md"
+      radius="lg"
       p="lg"
       style={{
         background: "#ffffff",
@@ -284,32 +312,44 @@ function HourlyLocationEstimateChart({
         boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
       }}
     >
-      <Stack gap="lg">
+      <Stack gap="md">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Stack gap={4}>
-            <Title order={2} size="h3">
-              {title}
-            </Title>
+            <Group gap="sm" align="center">
+              <IconClockHour4 size={20} color="teal" />
+              <Title order={3} size="h4">
+                시간대별 혼잡도 예측
+              </Title>
+            </Group>
             <Text c="dimmed" size="sm">
-              {description}
-            </Text>
-            <Text size="sm" fw={700} c="teal">
-              가장 붐비는 시간대:{" "}
-              {predictionPeakTime
-                ? `${predictionPeakTime} · 예측 ${formatNumber(predictionPeak)}`
-                : actualPeakTime
-                  ? `${actualPeakTime} · 실측 ${formatNumber(actualPeak)}`
-                  : "-"}
+              AI 기반 주간 예측 데이터입니다. 평균과 최대값을 함께 확인할 수
+              있습니다.
             </Text>
           </Stack>
-          {isFetching ? <Text size="sm" c="dimmed">조회 중</Text> : null}
+          {isFetching && !isLoading ? (
+            <Badge color="blue" variant="light" radius="xl" size="sm">
+              업데이트 중
+            </Badge>
+          ) : null}
         </Group>
+
+        {busiest && (
+          <Card bg="teal.0" radius="md" p="sm" withBorder={false}>
+            <Group gap="xs" align="center">
+              <IconUsers size={16} color="teal" />
+              <Text size="sm" fw={600}>
+                가장 붐비는 시간: {busiest.time} (예측{" "}
+                {formatNumber(busiest.estimatedDeviceCount)}명)
+              </Text>
+            </Group>
+          </Card>
+        )}
 
         {isError ? (
           <Group gap="sm" c="red">
             <IconAlertCircle size={18} />
             <Text size="sm">
-              {errorMessage ?? "Location estimate를 불러오지 못했습니다."}
+              {errorMessage ?? "예측 데이터를 불러오지 못했습니다."}
             </Text>
           </Group>
         ) : null}
@@ -320,13 +360,200 @@ function HourlyLocationEstimateChart({
           </Center>
         ) : labels.length ? (
           <Box
-            h={{ base: 300, sm: 380 }}
+            h={{ base: 260, sm: 340 }}
             style={{
               background:
                 "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, rgba(255,255,255,1) 100%)",
               border: "1px solid #edf2f7",
               borderRadius: 8,
-              padding: "18px 16px 10px",
+              padding: "14px 12px 8px",
+            }}
+          >
+            <Chart type="bar" data={chartData} options={chartOptions} />
+          </Box>
+        ) : (
+          <Text c="dimmed">표시할 데이터가 없습니다.</Text>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
+interface HistoryChartProps {
+  selectedDate: string;
+  predictionData?: DailyEstimateResponse;
+  actualFrames: ActualEstimateFrame[];
+  actualValues: Array<number | null>;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  errorMessage?: string;
+}
+
+function HistoryChart({
+  selectedDate,
+  predictionData,
+  actualFrames,
+  actualValues,
+  isLoading,
+  isFetching,
+  isError,
+  errorMessage,
+}: HistoryChartProps) {
+  const actualPeak = useMemo(
+    () => getBusiestHourFromActual(actualFrames, actualValues),
+    [actualFrames, actualValues],
+  );
+
+  const datasets: ChartData<"bar" | "line", Array<number | null>, string>["datasets"] = [];
+
+  if (predictionData) {
+    datasets.push({
+      type: "bar" as const,
+      label: "AI 예측",
+      data: actualFrames.map((f) => {
+        const est = predictionData.estimates.find((e) => e.time === f.time);
+        return est?.estimated_device_count ?? null;
+      }),
+      backgroundColor: "rgba(13, 148, 136, 0.25)",
+      borderColor: "rgba(15, 118, 110, 0.6)",
+      borderWidth: 1,
+      borderRadius: 6,
+      barPercentage: 0.7,
+      categoryPercentage: 0.8,
+    });
+  }
+
+  datasets.push({
+    type: "line" as const,
+    label: "실측",
+    data: actualValues,
+    backgroundColor: "rgba(37, 99, 235, 0.12)",
+    borderColor: "#2563eb",
+    borderWidth: 2.5,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    tension: 0.4,
+    fill: true,
+  });
+
+  const labels = actualFrames.map((f) => f.time);
+
+  const chartData: ChartData<"bar" | "line", Array<number | null>, string> = {
+    labels,
+    datasets,
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: "index" as const },
+    plugins: {
+      legend: {
+        display: true,
+        position: "bottom" as const,
+        labels: {
+          boxWidth: 10,
+          boxHeight: 10,
+          usePointStyle: true,
+          color: "#475569",
+        },
+      },
+      tooltip: {
+        backgroundColor: "#111827",
+        borderColor: "#1f2937",
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        callbacks: {
+          title: (items: TooltipItem<"bar" | "line">[]) =>
+            labels[items[0]?.dataIndex ?? 0] ?? "",
+          label: (item: TooltipItem<"bar" | "line">) =>
+            `${item.dataset.label}: ${
+              item.raw === null ? "-" : formatNumber(Number(item.raw))
+            }`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: "#64748b", maxRotation: 0, autoSkip: true, autoSkipPadding: 24 },
+      },
+      y: {
+        beginAtZero: true,
+        border: { display: false },
+        ticks: { display: false, precision: 0 },
+        grid: { color: "rgba(148, 163, 184, 0.18)", drawTicks: false },
+      },
+    },
+  };
+
+  return (
+    <Card
+      withBorder
+      radius="lg"
+      p="lg"
+      style={{
+        background: "#ffffff",
+        borderColor: "#e2e8f0",
+      }}
+    >
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+           <Stack gap={4}>
+             <Group gap="sm" align="center">
+               <IconHistory size={20} color="blue" />
+               <Title order={3} size="h4">
+                 {selectedDate} 실측 히스토리
+               </Title>
+             </Group>
+             <Text c="dimmed" size="sm">
+               선택한 날짜의 실측 데이터와 AI 예측값을 시간별로 비교합니다.
+             </Text>
+           </Stack>
+           {isFetching && !isLoading ? (
+             <Badge color="blue" variant="light" radius="xl" size="sm">
+               업데이트 중
+             </Badge>
+           ) : null}
+         </Group>
+
+        {actualPeak && (
+          <Card bg="blue.0" radius="md" p="sm" withBorder={false}>
+            <Group gap="xs" align="center">
+              <IconUsers size={16} color="blue" />
+              <Text size="sm" fw={600}>
+                최대 혼잡 시간: {actualPeak.time} (실측{" "}
+                {formatNumber(actualPeak.value)}명)
+              </Text>
+            </Group>
+          </Card>
+        )}
+
+        {isError ? (
+          <Group gap="sm" c="red">
+            <IconAlertCircle size={18} />
+            <Text size="sm">
+              {errorMessage ?? "데이터를 불러오지 못했습니다."}
+            </Text>
+          </Group>
+        ) : null}
+
+        {isLoading ? (
+          <Center py="xl">
+            <Loader />
+          </Center>
+        ) : labels.length ? (
+          <Box
+            h={{ base: 260, sm: 340 }}
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, rgba(255,255,255,1) 100%)",
+              border: "1px solid #edf2f7",
+              borderRadius: 8,
+              padding: "14px 12px 8px",
             }}
           >
             <Chart type="bar" data={chartData} options={chartOptions} />
@@ -341,38 +568,38 @@ function HourlyLocationEstimateChart({
 
 export default function RoomCurrent() {
   const { spaceId, roomId } = useParams<{ spaceId: string; roomId: string }>();
-  const [selectedDate, setSelectedDate] = useState(() =>
+  const [selectedDayLabel, setSelectedDayLabel] = useState<string>(
+    DAY_OF_WEEK_LABELS[new Date().getDay()],
+  );
+  const [historyDate, setHistoryDate] = useState(() =>
     toDateInputValue(new Date()),
   );
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const roomQuery = useRoom(spaceId, roomId);
   const room = roomQuery.data as Room | undefined;
-  const actualFrames = useMemo(
-    () => buildTenMinuteFrames(selectedDate),
-    [selectedDate],
+  const selectedDayOfWeek = getDayOfWeekValue(selectedDayLabel);
+
+  const weeklyQuery = useWeeklyEstimates(
+    spaceId ?? "",
+    roomId,
+    selectedDayOfWeek,
+    Boolean(spaceId && roomId),
   );
-  const predictionQuery = useQuery<DailyEstimateResponse>({
-    queryKey: [
-      "publicRoomDailyEstimatePrediction",
-      spaceId,
-      roomId,
-      selectedDate,
-      refreshKey,
-    ],
-    queryFn: () =>
-      axios
-        .get(
-          `https://bird-ai.l1n.kr/api/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
-          {
-            params: { date: selectedDate },
-          },
-        )
-        .then((res) => res.data as DailyEstimateResponse),
-    enabled: Boolean(spaceId && roomId && selectedDate),
-    staleTime: 60 * 1000,
-  });
-  const actualQueries = useQueries({
-    queries: actualFrames.map((frame) => ({
+  const weeklyDay = useMemo(
+    () =>
+      weeklyQuery.data?.weeklyEstimates.find(
+        (d) => d.dayOfWeek === selectedDayOfWeek,
+      ) ?? null,
+    [weeklyQuery.data, selectedDayOfWeek],
+  );
+
+  const historyFrames = useMemo(
+    () => buildHourlyFrames(historyDate),
+    [historyDate],
+  );
+  const historyActualQueries = useQueries({
+    queries: historyFrames.map((frame) => ({
       queryKey: [
         "publicRoomActualLocationEstimates",
         spaceId,
@@ -391,26 +618,53 @@ export default function RoomCurrent() {
           minimumAnchorMatches: MINIMUM_ANCHOR_MATCHES,
           minimumConfidence: ACTUAL_MINIMUM_CONFIDENCE,
         }),
-      enabled: Boolean(spaceId && roomId && selectedDate),
+      enabled: Boolean(spaceId && roomId && historyOpen),
       staleTime: 60 * 1000,
     })),
   });
-  const actualValues = actualQueries.map(
-    (query) => query.data?.stats.estimatedDeviceCount ?? null,
+  const historyActualValues = historyActualQueries.map(
+    (q) => q.data?.stats.estimatedDeviceCount ?? null,
   );
-  const actualIsLoading = actualQueries.some(
-    (query) => query.isLoading && !query.data,
+  const historyActualIsLoading = historyActualQueries.some(
+    (q) => q.isLoading && !q.data,
   );
-  const actualIsFetching = actualQueries.some((query) => query.isFetching);
-  const actualError = actualQueries.find((query) => query.isError)?.error;
-  const chartError = predictionQuery.error ?? actualError;
+  const historyActualIsFetching = historyActualQueries.some(
+    (q) => q.isFetching,
+  );
+  const historyActualError = historyActualQueries.find((q) => q.isError)?.error;
+
+  const historyPredictionQuery = useQuery<DailyEstimateResponse>({
+    queryKey: [
+      "publicRoomDailyEstimatePrediction",
+      spaceId,
+      roomId,
+      historyDate,
+      refreshKey,
+    ],
+    queryFn: () =>
+      axios
+        .get(
+          `https://bird-ai.l1n.kr/api/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
+          { params: { date: historyDate } },
+        )
+        .then((res) => res.data as DailyEstimateResponse),
+    enabled: Boolean(spaceId && roomId && historyOpen),
+    staleTime: 60 * 1000,
+  });
+
   const isFetching =
-    roomQuery.isFetching || predictionQuery.isFetching || actualIsFetching;
+    roomQuery.isFetching ||
+    weeklyQuery.isFetching ||
+    historyActualIsFetching ||
+    historyPredictionQuery.isFetching;
 
   const refresh = () => {
     setRefreshKey((current) => current + 1);
     void roomQuery.refetch();
   };
+
+  const todayDayOfWeek = new Date().getDay();
+  const todayLabel = DAY_OF_WEEK_LABELS[todayDayOfWeek];
 
   return (
     <Box bg="#f6f7f9" mih="100dvh">
@@ -421,9 +675,7 @@ export default function RoomCurrent() {
               <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                 Room Activity
               </Text>
-              <Title order={1}>
-                {room?.name ?? "Room"}
-              </Title>
+              <Title order={1}>{room?.name ?? "Room"}</Title>
               {room?.description ? (
                 <Text c="dimmed" maw={720}>
                   {room.description}
@@ -440,37 +692,126 @@ export default function RoomCurrent() {
             </Button>
           </Group>
 
-          <Card withBorder radius="md" p="lg">
-            <Group justify="space-between" align="flex-end" wrap="wrap">
-              <Stack gap={4}>
-                <Text fw={700}>날짜 선택</Text>
-                <Text size="sm" c="dimmed">
-                  선택한 날짜의 실측값과 AI 예측값을 10분 단위로 표시합니다.
-                </Text>
-              </Stack>
-              <TextInput
-                leftSection={<IconCalendar size={16} />}
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
-                maw={240}
+          <Card withBorder radius="lg" p="lg">
+            <Stack gap="md">
+              <Group justify="space-between" align="center" wrap="wrap">
+                <Stack gap={4}>
+                  <Text fw={700}>요일 선택</Text>
+                  <Text size="sm" c="dimmed">
+                    요일별 AI 혼잡도 예측을 확인하세요
+                  </Text>
+                </Stack>
+                {selectedDayLabel === todayLabel ? (
+                  <Badge color="green" variant="light" radius="xl" size="sm">
+                    오늘
+                  </Badge>
+                ) : null}
+              </Group>
+              <SegmentedControl
+                fullWidth
+                value={selectedDayLabel}
+                onChange={setSelectedDayLabel}
+                data={DAY_OF_WEEK_LABELS.map((label, i) => ({
+                  label: i === todayDayOfWeek ? `${label} ·` : label,
+                  value: label,
+                }))}
               />
-            </Group>
+              <Group gap={4}>
+                {DAY_OF_WEEK_LABELS.map((label) => {
+                  const dayOfWeek = getDayOfWeekValue(label);
+                  const day = weeklyQuery.data?.weeklyEstimates.find(
+                    (d) => d.dayOfWeek === dayOfWeek,
+                  );
+                  if (!day) return null;
+                  const peak = day.slots.reduce(
+                    (max, s) =>
+                      s.estimatedDeviceCount > max
+                        ? s.estimatedDeviceCount
+                        : max,
+                    0,
+                  );
+                  if (peak === 0) return null;
+                  return (
+                    <Badge
+                      key={label}
+                      color={
+                        label === selectedDayLabel ? "teal" : "gray"
+                      }
+                      variant={label === selectedDayLabel ? "filled" : "light"}
+                      radius="sm"
+                      size="sm"
+                    >
+                      {label} 최대 {peak}
+                    </Badge>
+                  );
+                })}
+              </Group>
+            </Stack>
           </Card>
 
-          <HourlyLocationEstimateChart
-            title={`${selectedDate} 시간대별 혼잡도`}
-            description={`${selectedDate} 하루 동안의 실측값과 AI 예측값입니다.`}
-            predictionData={predictionQuery.data}
-            actualFrames={actualFrames}
-            actualValues={actualValues}
-            isLoading={predictionQuery.isLoading || actualIsLoading}
-            isFetching={predictionQuery.isFetching || actualIsFetching}
-            isError={predictionQuery.isError || Boolean(actualError)}
+          <WeeklyChart
+            weeklyDay={weeklyDay}
+            isLoading={weeklyQuery.isLoading}
+            isFetching={weeklyQuery.isFetching}
+            isError={weeklyQuery.isError}
             errorMessage={
-              chartError instanceof Error ? chartError.message : undefined
+              weeklyQuery.error instanceof Error
+                ? weeklyQuery.error.message
+                : undefined
             }
           />
+
+          <Accordion
+            variant="contained"
+            radius="lg"
+            value={historyOpen ? "history" : ""}
+            onChange={(v) => setHistoryOpen(v === "history")}
+          >
+            <Accordion.Item value="history">
+              <Accordion.Control>
+                <Group gap="sm" align="center">
+                  <IconHistory size={18} color="gray" />
+                  <Text fw={600}>과거 실측 히스토리 보기</Text>
+                </Group>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="md" pt="sm">
+                  <Group justify="flex-end" align="flex-end" wrap="wrap">
+                    <TextInput
+                      leftSection={<IconCalendar size={16} />}
+                      label="날짜 선택"
+                      type="date"
+                      value={historyDate}
+                      onChange={(event) => setHistoryDate(event.target.value)}
+                      maw={220}
+                    />
+                  </Group>
+                  <HistoryChart
+                    selectedDate={historyDate}
+                    predictionData={historyPredictionQuery.data}
+                    actualFrames={historyFrames}
+                    actualValues={historyActualValues}
+                    isLoading={
+                      historyPredictionQuery.isLoading || historyActualIsLoading
+                    }
+                    isFetching={
+                      historyPredictionQuery.isFetching ||
+                      historyActualIsFetching
+                    }
+                    isError={
+                      historyPredictionQuery.isError ||
+                      Boolean(historyActualError)
+                    }
+                    errorMessage={
+                      historyActualError instanceof Error
+                        ? historyActualError.message
+                        : undefined
+                    }
+                  />
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
         </Stack>
       </Container>
     </Box>
