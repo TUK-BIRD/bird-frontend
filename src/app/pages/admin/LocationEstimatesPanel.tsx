@@ -9,7 +9,6 @@ import {
   Center,
   Group,
   Loader,
-  NumberInput,
   Select,
   SimpleGrid,
   Slider,
@@ -21,6 +20,9 @@ import {
 } from "@mantine/core";
 import {
   IconAlertCircle,
+  IconArrowDownRight,
+  IconArrowRight,
+  IconArrowUpRight,
   IconPlayerPauseFilled,
   IconPlayerPlayFilled,
 } from "@tabler/icons-react";
@@ -42,6 +44,7 @@ import { useQueries } from "@tanstack/react-query";
 import useRooms from "@/hooks/useRooms";
 import useBleLocationEstimates, {
   type BleLocationEstimateDevice,
+  type BleLocationEstimatesResponse,
   fetchBleLocationEstimates,
 } from "@/hooks/useBleLocationEstimates";
 import type { Room } from "@/types/room";
@@ -58,7 +61,9 @@ ChartJS.register(
 
 const DEFAULT_WINDOW_MINUTES = 10;
 const DEFAULT_MINIMUM_ANCHOR_MATCHES = 2;
+const CONFIDENCE_THRESHOLD = 0.7;
 const SCATTER_GRID_PADDING = 2;
+const SCATTER_MAX_HEIGHT_PX = 520;
 const PLAYBACK_INTERVAL_MS = 700;
 
 const pad = (value: number) => value.toString().padStart(2, "0");
@@ -198,6 +203,76 @@ const formatNumber = (value?: number | null, fractionDigits = 0) => {
   });
 };
 
+const formatDelta = (value: number, fractionDigits = 0) => {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatNumber(value, fractionDigits)}`;
+};
+
+const formatPercentDelta = (current: number, previous: number) => {
+  if (previous === 0) {
+    if (current === 0) return "0%";
+    return "New";
+  }
+
+  return `${formatDelta(((current - previous) / previous) * 100, 1)}%`;
+};
+
+const shiftTimestampByDays = (value: string | undefined, days: number) => {
+  if (!value) return undefined;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+
+  date.setDate(date.getDate() + days);
+  return toIsoWithOffset(date);
+};
+
+const formatDateRange = (since?: string | null, until?: string | null) => {
+  if (!since || !until) return "—";
+
+  return `${formatTimestamp(since)} ~ ${formatTimestamp(until)}`;
+};
+
+const summarizeDevices = (devices: BleLocationEstimateDevice[]) => {
+  const estimated = devices.filter((device) => device.estimate);
+  const outside = estimated.filter((device) => device.estimate?.isOutside);
+
+  return {
+    deviceCount: devices.length,
+    estimatedCount: estimated.length,
+    outsideCount: outside.length,
+  };
+};
+
+const getScatterBounds = (
+  radiomap: BleLocationEstimatesResponse["generatedRadiomap"],
+) => {
+  if (!radiomap) {
+    return {
+      xMin: 0,
+      xMax: 1,
+      yMin: 0,
+      yMax: 1,
+      aspectRatio: 1,
+    };
+  }
+
+  const xMin = radiomap.xRangeMin - SCATTER_GRID_PADDING;
+  const xMax = radiomap.xRangeMax + SCATTER_GRID_PADDING;
+  const yMin = radiomap.yRangeMin - SCATTER_GRID_PADDING;
+  const yMax = radiomap.yRangeMax + SCATTER_GRID_PADDING;
+  const xSpan = Math.max(xMax - xMin, 1);
+  const ySpan = Math.max(yMax - yMin, 1);
+
+  return {
+    xMin,
+    xMax,
+    yMin,
+    yMax,
+    aspectRatio: xSpan / ySpan,
+  };
+};
+
 const sortDevices = (devices: BleLocationEstimateDevice[]) => {
   return [...devices].sort((a, b) => {
     const confidenceGap =
@@ -287,6 +362,64 @@ interface AppliedLocationEstimateFilters {
   requestKey: number;
 }
 
+interface ComparisonMetric {
+  label: string;
+  current: number;
+  previous: number;
+  fractionDigits?: number;
+  suffix?: string;
+}
+
+function ComparisonMetricCard({
+  metric,
+}: {
+  metric: ComparisonMetric;
+}) {
+  const delta = metric.current - metric.previous;
+  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const Icon =
+    direction === "up"
+      ? IconArrowUpRight
+      : direction === "down"
+        ? IconArrowDownRight
+        : IconArrowRight;
+  const color = direction === "up" ? "blue" : direction === "down" ? "red" : "gray";
+
+  return (
+    <Card withBorder radius="lg" p="md">
+      <Stack gap={8}>
+        <Group justify="space-between" align="center">
+          <Text size="sm" c="dimmed" fw={700}>
+            {metric.label}
+          </Text>
+          <Badge
+            color={color}
+            variant="light"
+            radius="xl"
+            leftSection={<Icon size={14} />}
+          >
+            {formatPercentDelta(metric.current, metric.previous)}
+          </Badge>
+        </Group>
+        <Group gap="xs" align="baseline">
+          <Text size="2rem" fw={900} lh={1}>
+            {formatNumber(metric.current, metric.fractionDigits)}
+            {metric.suffix ?? ""}
+          </Text>
+          <Text size="sm" c="dimmed">
+            전주 {formatNumber(metric.previous, metric.fractionDigits)}
+            {metric.suffix ?? ""}
+          </Text>
+        </Group>
+        <Text size="xs" c={color}>
+          전주 대비 {formatDelta(delta, metric.fractionDigits)}
+          {metric.suffix ?? ""}
+        </Text>
+      </Stack>
+    </Card>
+  );
+}
+
 export default function LocationEstimatesPanel() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -311,7 +444,6 @@ export default function LocationEstimatesPanel() {
   const [untilInput, setUntilInput] = useState(() =>
     toDateInputValueFromQueryParam(searchParams.get("until"), queryDateRange.until),
   );
-  const [confidenceThreshold, setConfidenceThreshold] = useState(0.9);
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [appliedFilters, setAppliedFilters] =
@@ -373,6 +505,29 @@ export default function LocationEstimatesPanel() {
     requestKey: effectiveFilters?.requestKey,
     enabled: Boolean(effectiveFilters?.roomId),
   });
+  const previousWeekFilters = useMemo<AppliedLocationEstimateFilters | null>(() => {
+    if (!effectiveFilters) return null;
+
+    return {
+      ...effectiveFilters,
+      since: shiftTimestampByDays(effectiveFilters.since, -7),
+      until: shiftTimestampByDays(effectiveFilters.until, -7),
+    };
+  }, [effectiveFilters]);
+  const previousWeekQuery = useBleLocationEstimates({
+    spaceId: spaceId ?? "",
+    roomId: previousWeekFilters?.roomId,
+    since: previousWeekFilters?.since,
+    until: previousWeekFilters?.until,
+    windowMinutes: previousWeekFilters?.windowMinutes,
+    minimumAnchorMatches: previousWeekFilters?.minimumAnchorMatches,
+    requestKey: previousWeekFilters?.requestKey,
+    enabled: Boolean(
+      previousWeekFilters?.roomId &&
+        previousWeekFilters.since &&
+        previousWeekFilters.until,
+    ),
+  });
 
   const playbackFrames = useMemo(
     () =>
@@ -382,6 +537,15 @@ export default function LocationEstimatesPanel() {
         effectiveFilters?.windowMinutes,
       ),
     [effectiveFilters],
+  );
+  const previousWeekPlaybackFrames = useMemo(
+    () =>
+      buildPlaybackFrames(
+        previousWeekFilters?.since,
+        previousWeekFilters?.until,
+        previousWeekFilters?.windowMinutes,
+      ),
+    [previousWeekFilters],
   );
   const clampedPlaybackIndex = Math.min(
     playbackIndex,
@@ -413,30 +577,53 @@ export default function LocationEstimatesPanel() {
       staleTime: 60 * 1000,
     })),
   });
+  const previousWeekPlaybackQueries = useQueries({
+    queries: previousWeekPlaybackFrames.map((frame) => ({
+      queryKey: [
+        "bleLocationEstimatesPreviousWeekPlayback",
+        spaceId,
+        previousWeekFilters?.roomId,
+        frame.since,
+        frame.until,
+        previousWeekFilters?.windowMinutes,
+        previousWeekFilters?.minimumAnchorMatches,
+        previousWeekFilters?.requestKey,
+      ],
+      queryFn: () =>
+        fetchBleLocationEstimates({
+          spaceId: spaceId ?? "",
+          roomId: previousWeekFilters?.roomId,
+          since: frame.since,
+          until: frame.until,
+          windowMinutes: previousWeekFilters?.windowMinutes,
+          minimumAnchorMatches: previousWeekFilters?.minimumAnchorMatches,
+        }),
+      enabled: Boolean(previousWeekFilters?.roomId),
+      staleTime: 60 * 1000,
+    })),
+  });
   const playbackData = playbackQueries[clampedPlaybackIndex]?.data;
   const playbackDevices = useMemo(
     () => sortDevices(playbackData?.devices ?? []),
     [playbackData],
   );
   const playbackRadiomap = playbackData?.generatedRadiomap ?? null;
+  const scatterBounds = useMemo(
+    () => getScatterBounds(playbackRadiomap),
+    [playbackRadiomap],
+  );
   const estimatedDevices = useMemo(
     () =>
       playbackDevices.filter(
         (device) =>
-          device.estimate && device.estimate.confidence >= confidenceThreshold,
+          device.estimate && device.estimate.confidence >= CONFIDENCE_THRESHOLD,
       ),
-    [confidenceThreshold, playbackDevices],
+    [playbackDevices],
   );
   const playbackSummary = useMemo(
     () =>
       playbackFrames.map((frame, index) => {
         const frameData = playbackQueries[index]?.data;
-        const frameDevices = frameData?.devices ?? [];
-        const highConfidenceCount = frameDevices.filter(
-          (device) =>
-            device.estimate &&
-            device.estimate.confidence >= confidenceThreshold,
-        ).length;
 
         return {
           label: frame.label,
@@ -444,10 +631,22 @@ export default function LocationEstimatesPanel() {
             new Date(frame.since).getMinutes(),
           )}`,
           estimatedDeviceCount: frameData?.stats.estimatedDeviceCount ?? 0,
-          highConfidenceCount,
         };
       }),
-    [confidenceThreshold, playbackFrames, playbackQueries],
+    [playbackFrames, playbackQueries],
+  );
+  const previousWeekPlaybackSummary = useMemo(
+    () =>
+      playbackFrames.map((frame, index) => {
+        const previousFrame = previousWeekPlaybackFrames[index];
+        const frameData = previousWeekPlaybackQueries[index]?.data;
+
+        return {
+          label: previousFrame?.label ?? frame.label,
+          estimatedDeviceCount: frameData?.stats.estimatedDeviceCount ?? 0,
+        };
+      }),
+    [playbackFrames, previousWeekPlaybackFrames, previousWeekPlaybackQueries],
   );
   const scatterData = useMemo(() => {
     return {
@@ -470,7 +669,8 @@ export default function LocationEstimatesPanel() {
   const scatterOptions = useMemo(
     () => ({
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: true,
+      aspectRatio: scatterBounds.aspectRatio,
       animation: {
         duration: 260,
         easing: "easeOutQuart" as const,
@@ -514,14 +714,8 @@ export default function LocationEstimatesPanel() {
       },
       scales: {
         x: {
-          min:
-            playbackRadiomap !== null
-              ? playbackRadiomap.xRangeMin - SCATTER_GRID_PADDING
-              : 0,
-          max:
-            playbackRadiomap !== null
-              ? playbackRadiomap.xRangeMax + SCATTER_GRID_PADDING
-              : 1,
+          min: scatterBounds.xMin,
+          max: scatterBounds.xMax,
           title: {
             display: true,
             text: "X Position",
@@ -536,14 +730,8 @@ export default function LocationEstimatesPanel() {
             : undefined,
         },
         y: {
-          min:
-            playbackRadiomap !== null
-              ? playbackRadiomap.yRangeMin - SCATTER_GRID_PADDING
-              : 0,
-          max:
-            playbackRadiomap !== null
-              ? playbackRadiomap.yRangeMax + SCATTER_GRID_PADDING
-              : 1,
+          min: scatterBounds.yMin,
+          max: scatterBounds.yMax,
           title: {
             display: true,
             text: "Y Position",
@@ -559,7 +747,7 @@ export default function LocationEstimatesPanel() {
         },
       },
     }),
-    [estimatedDevices, playbackRadiomap],
+    [estimatedDevices, playbackRadiomap, scatterBounds],
   );
   const scatterPlugins = useMemo<Plugin<"scatter">[]>(() => {
     if (!playbackRadiomap) return [];
@@ -639,28 +827,31 @@ export default function LocationEstimatesPanel() {
       datasets: [
         {
           type: "bar" as const,
-          label: "Estimated Devices",
+          label: "선택 기간",
           data: playbackSummary.map((item) => item.estimatedDeviceCount),
-          backgroundColor: "rgba(148, 163, 184, 0.5)",
-          borderColor: "#94a3b8",
+          backgroundColor: "rgba(37, 99, 235, 0.45)",
+          borderColor: "#2563eb",
           borderRadius: 6,
           yAxisID: "countAxis",
         },
         {
           type: "line" as const,
-          label: "Confidence >= 0.9",
-          data: playbackSummary.map((item) => item.highConfidenceCount),
-          borderColor: "#2563eb",
-          backgroundColor: "rgba(37, 99, 235, 0.18)",
-          pointBackgroundColor: "#2563eb",
+          label: "전주 동일 시간",
+          data: previousWeekPlaybackSummary.map(
+            (item) => item.estimatedDeviceCount,
+          ),
+          borderColor: "#f59e0b",
+          backgroundColor: "rgba(245, 158, 11, 0.18)",
+          pointBackgroundColor: "#f59e0b",
           pointBorderColor: "#ffffff",
           pointBorderWidth: 2,
+          borderWidth: 3,
           tension: 0.3,
           yAxisID: "countAxis",
         },
       ],
     };
-  }, [playbackSummary]);
+  }, [playbackSummary, previousWeekPlaybackSummary]);
   const playbackTrendOptions = useMemo(
     () => ({
       responsive: true,
@@ -676,13 +867,19 @@ export default function LocationEstimatesPanel() {
       },
       plugins: {
         legend: {
-          display: false,
+          display: true,
+          position: "bottom" as const,
         },
         tooltip: {
           callbacks: {
             title: (items: TooltipItem<"bar">[]) => {
               const index = items[0]?.dataIndex ?? 0;
               return playbackSummary[index]?.label ?? "";
+            },
+            afterTitle: (items: TooltipItem<"bar">[]) => {
+              const index = items[0]?.dataIndex ?? 0;
+              const previousLabel = previousWeekPlaybackSummary[index]?.label;
+              return previousLabel ? [`전주: ${previousLabel}`] : [];
             },
           },
         },
@@ -701,11 +898,33 @@ export default function LocationEstimatesPanel() {
         },
       },
     }),
-    [playbackSummary],
+    [playbackSummary, previousWeekPlaybackSummary],
   );
   const playbackLoading = playbackQueries.some(
     (playbackQuery) => playbackQuery.isLoading && !playbackQuery.data,
   );
+  const previousWeekPlaybackLoading = previousWeekPlaybackQueries.some(
+    (playbackQuery) => playbackQuery.isLoading && !playbackQuery.data,
+  );
+  const weekComparisonMetrics = useMemo<ComparisonMetric[]>(() => {
+    if (!query.data || !previousWeekQuery.data) return [];
+
+    const currentSummary = summarizeDevices(query.data.devices);
+    const previousSummary = summarizeDevices(previousWeekQuery.data.devices);
+
+    return [
+      {
+        label: "Estimated Devices",
+        current: query.data.stats.estimatedDeviceCount,
+        previous: previousWeekQuery.data.stats.estimatedDeviceCount,
+      },
+      {
+        label: "Outside Estimates",
+        current: currentSummary.outsideCount,
+        previous: previousSummary.outsideCount,
+      },
+    ];
+  }, [previousWeekQuery.data, query.data]);
 
   const handleSearch = () => {
     if (!activeRoomId) return;
@@ -843,48 +1062,73 @@ export default function LocationEstimatesPanel() {
 
         {!query.isLoading && !query.isError && query.data && (
           <Stack gap="lg">
-            <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
-              <Card withBorder radius="xl" p="lg">
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Installed Anchors
+            <Card withBorder radius="xl" p="lg">
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-end">
+                  <Stack gap={4}>
+                    <Text size="lg" fw={700}>
+                      전주 동일 기간 비교
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      현재 조회 기간과 7일 전 같은 시간 범위의 위치 추정 결과를
+                      비교합니다.
+                    </Text>
+                  </Stack>
+                  <Badge
+                    color={previousWeekQuery.isFetching ? "blue" : "gray"}
+                    variant="light"
+                    radius="xl"
+                  >
+                    {previousWeekQuery.isFetching ? "전주 조회 중" : "전주 대비"}
+                  </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                  <Box>
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Current
+                    </Text>
+                    <Text size="sm">
+                      {formatDateRange(
+                        query.data.timespan.since,
+                        query.data.timespan.until,
+                      )}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Previous Week
+                    </Text>
+                    <Text size="sm">
+                      {formatDateRange(
+                        previousWeekFilters?.since,
+                        previousWeekFilters?.until,
+                      )}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+
+                {previousWeekQuery.isLoading && !previousWeekQuery.data ? (
+                  <Center py="lg">
+                    <Loader size="sm" />
+                  </Center>
+                ) : previousWeekQuery.isError ? (
+                  <Text c="red" size="sm">
+                    전주 동일 기간 데이터를 불러오지 못했습니다.
                   </Text>
-                  <Text size="2.2rem" fw={900}>
-                    {query.data.stats.installedAnchorCount.toLocaleString()}
+                ) : weekComparisonMetrics.length ? (
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                    {weekComparisonMetrics.map((metric) => (
+                      <ComparisonMetricCard key={metric.label} metric={metric} />
+                    ))}
+                  </SimpleGrid>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    비교할 전주 데이터가 없습니다.
                   </Text>
-                </Stack>
-              </Card>
-              <Card withBorder radius="xl" p="lg">
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Estimated Devices
-                  </Text>
-                  <Text size="2.2rem" fw={900}>
-                    {query.data.stats.estimatedDeviceCount.toLocaleString()}
-                  </Text>
-                </Stack>
-              </Card>
-              <Card withBorder radius="xl" p="lg">
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Window
-                  </Text>
-                  <Text size="2rem" fw={900}>
-                    {query.data.timespan.windowMinutes} min
-                  </Text>
-                </Stack>
-              </Card>
-              <Card withBorder radius="xl" p="lg">
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Minimum Matches
-                  </Text>
-                  <Text size="2rem" fw={900}>
-                    {query.data.timespan.minimumAnchorMatches}
-                  </Text>
-                </Stack>
-              </Card>
-            </SimpleGrid>
+                )}
+              </Stack>
+            </Card>
 
             <Card withBorder radius="xl" p="lg">
               <Stack gap="md">
@@ -894,31 +1138,17 @@ export default function LocationEstimatesPanel() {
                       Frame Trend
                     </Text>
                     <Text size="sm" c="dimmed">
-                      프레임별 전체 추정 디바이스 수와 confidence 0.9 이상
-                      디바이스 수입니다.
+                      프레임별 추정 디바이스 수를 선택 기간과 전주 동일 시간대로
+                      비교합니다.
                     </Text>
                   </Stack>
-                  <Badge color="blue" variant="light" radius="xl">
-                    High confidence threshold{" "}
-                    {formatNumber(confidenceThreshold, 2)}
+                  <Badge
+                    color={previousWeekPlaybackLoading ? "blue" : "gray"}
+                    variant="light"
+                    radius="xl"
+                  >
+                    {previousWeekPlaybackLoading ? "전주 차트 조회 중" : "전주 비교"}
                   </Badge>
-                </Group>
-
-                <Group align="flex-end" grow>
-                  <NumberInput
-                    label="Confidence Threshold"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    decimalScale={2}
-                    fixedDecimalScale
-                    value={confidenceThreshold}
-                    onChange={(value) =>
-                      setConfidenceThreshold(
-                        Math.max(0, Math.min(1, Number(value) || 0)),
-                      )
-                    }
-                  />
                 </Group>
 
                 {playbackTrendData ? (
@@ -946,7 +1176,7 @@ export default function LocationEstimatesPanel() {
                     <Text size="sm" c="dimmed">
                       선택한 시간 범위를 {DEFAULT_WINDOW_MINUTES}분 창으로 나눠 scatter
                       변화를 재생합니다. confidence{" "}
-                      {formatNumber(confidenceThreshold, 2)} 이상만 표시합니다.
+                      {formatNumber(CONFIDENCE_THRESHOLD, 2)} 이상만 표시합니다.
                     </Text>
                   </Stack>
                   <Group gap="sm">
@@ -991,8 +1221,7 @@ export default function LocationEstimatesPanel() {
                     </Text>
                   </Stack>
                   <Badge color="blue" variant="light" radius="xl">
-                    High confidence threshold{" "}
-                    {formatNumber(confidenceThreshold, 2)}
+                    Confidence fixed {formatNumber(CONFIDENCE_THRESHOLD, 2)}
                   </Badge>
                 </Group>
 
@@ -1040,7 +1269,17 @@ export default function LocationEstimatesPanel() {
                   <Text c="dimmed">Radiomap range is not available</Text>
                 ) : (
                   <>
-                    <Box style={{ height: 460, minHeight: 460 }}>
+                    <Box
+                      style={{
+                        aspectRatio: String(scatterBounds.aspectRatio),
+                        width: "100%",
+                        maxWidth: `min(100%, ${Math.round(
+                          SCATTER_MAX_HEIGHT_PX * scatterBounds.aspectRatio,
+                        )}px)`,
+                        maxHeight: SCATTER_MAX_HEIGHT_PX,
+                        marginInline: "auto",
+                      }}
+                    >
                       <Scatter
                         data={scatterData}
                         options={scatterOptions}

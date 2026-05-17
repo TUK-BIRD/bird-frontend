@@ -1,8 +1,7 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import useRooms from "../../../hooks/useRooms";
 import {
   Box,
-  Button,
   Card,
   Container,
   Divider,
@@ -17,7 +16,6 @@ import {
 export default function RoomSelect() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const { data: rooms, isLoading: isRoomLoading } = useRooms(spaceId!);
-  const navigate = useNavigate();
   // const { mutate, isPending, error } = useCreateRoom(spaceId!);
 
   if (isRoomLoading) {
@@ -43,12 +41,6 @@ export default function RoomSelect() {
 
           <Group justify="space-between" align="center" wrap="wrap">
             <Title order={2}>방 목록</Title>
-            <Button
-            // onClick={() => mutate()}
-            // onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
-            >
-              Room 생성
-            </Button>
           </Group>
           <Divider />
 
@@ -59,15 +51,8 @@ export default function RoomSelect() {
                   아직 생성된 Room이 없습니다
                 </Text>
                 <Text size="sm" c="dimmed">
-                  새로운 Room을 생성해서 공간을 관리해보세요.
+                  방 도면 생성 기능은 현재 비활성화되어 있습니다.
                 </Text>
-                <Button
-                  mt="md"
-                  // onClick={() => navigate(`/admin/space/${spaceId}/rooms/create`)}
-                  // onClick={mutate}
-                >
-                  Room 생성
-                </Button>
               </Stack>
             </Card>
           ) : (
@@ -77,10 +62,7 @@ export default function RoomSelect() {
                   key={room.id}
                   withBorder
                   radius="md"
-                  style={{ cursor: "pointer", backgroundColor: "white" }}
-                  onClick={() =>
-                    navigate(`/admin/space/${spaceId}/rooms/${room.id}`)
-                  }
+                  style={{ backgroundColor: "white" }}
                 >
                   <Stack gap={6}>
                     <Text fw={600}>{room.name}</Text>

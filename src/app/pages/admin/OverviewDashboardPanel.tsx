@@ -9,12 +9,9 @@ import {
   Center,
   Group,
   Loader,
-  Progress,
   Select,
-  SegmentedControl,
   SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -22,24 +19,11 @@ import {
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/api/client";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  Legend,
-  type TooltipItem,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
 import useRooms from "@/hooks/useRooms";
 import useOverviewDashboard, {
   type OverviewAnchorHealthItem,
-  type OverviewTimeSlot,
 } from "@/hooks/useOverviewDashboard";
 import type { HealthState } from "@/hooks/useBleAnchorHealth";
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const statusPriority: Record<HealthState, number> = {
   offline: 0,
@@ -136,8 +120,6 @@ const formatNumber = (value?: number | null, fractionDigits = 0) => {
   });
 };
 
-const formatPercent = (value?: number | null) => `${formatNumber(value, 1)}%`;
-
 const formatTimestamp = (value?: string | null) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -150,32 +132,6 @@ const formatTimestamp = (value?: string | null) => {
   });
 };
 
-const formatBucketLabel = (value?: string | null) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatBucketRange = (bucket: string, bucketMinutes: number) => {
-  const start = new Date(bucket);
-  if (Number.isNaN(start.getTime())) return "-";
-  const end = new Date(start.getTime() + bucketMinutes * 60 * 1000);
-  const timeOptions: Intl.DateTimeFormatOptions = {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  };
-
-  return `${start.toLocaleTimeString(undefined, timeOptions)} - ${end.toLocaleTimeString(
-    undefined,
-    timeOptions,
-  )}`;
-};
-
 const sortAnchorHealth = (anchors: OverviewAnchorHealthItem[]) =>
   [...anchors].sort((a, b) => {
     const stateGap =
@@ -183,9 +139,6 @@ const sortAnchorHealth = (anchors: OverviewAnchorHealthItem[]) =>
     if (stateGap !== 0) return stateGap;
     return a.label.localeCompare(b.label, "ko");
   });
-
-const sortBusiestSlots = (slots: OverviewTimeSlot[]) =>
-  [...slots].sort((a, b) => b.uniqueDeviceCount - a.uniqueDeviceCount);
 
 type ScanCommandState = "on" | "off";
 
@@ -269,8 +222,6 @@ export default function OverviewDashboardPanel() {
   const [untilInput, setUntilInput] = useState(() =>
     toDateInputValue(new Date()),
   );
-  const [bucketMinutes, setBucketMinutes] = useState<10 | 30 | 60>(10);
-  const [limit, setLimit] = useState<5 | 10>(5);
 
   const { data: rooms } = useRooms(spaceId ?? "");
   const roomOptions = useMemo(
@@ -296,8 +247,6 @@ export default function OverviewDashboardPanel() {
     roomId: activeRoomId,
     since: toRequestSinceTimestamp(sinceInput),
     until: toRequestUntilTimestamp(untilInput),
-    bucketMinutes,
-    limit,
     enabled: Boolean(activeRoomId),
   });
   const scanStatusQuery = useQuery<RoomScanStatusResponse>({
@@ -362,77 +311,6 @@ export default function OverviewDashboardPanel() {
     () => sortAnchorHealth(overview?.anchorHealth.anchors ?? []),
     [overview?.anchorHealth.anchors],
   );
-  const busiestSlots = useMemo(
-    () => sortBusiestSlots(overview?.busiestTimeSlots ?? []),
-    [overview?.busiestTimeSlots],
-  );
-  const timeSeries = useMemo(
-    () => overview?.timeSeries ?? [],
-    [overview?.timeSeries],
-  );
-  const isEmptyOccupancy = overview?.occupancy.uniqueDeviceCount === 0;
-
-  const chartData = useMemo(
-    () => ({
-      labels: timeSeries.map((slot) => slot.bucket),
-      datasets: [
-        {
-          label: "측정된 기기 수",
-          data: timeSeries.map((slot) => slot.uniqueDeviceCount),
-          backgroundColor: "#2563eb",
-          borderRadius: 4,
-          barThickness: 18,
-          maxBarThickness: 28,
-        },
-      ],
-    }),
-    [timeSeries],
-  );
-
-  const chartOptions = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false,
-        },
-        tooltip: {
-          callbacks: {
-            title: (items: TooltipItem<"bar">[]) =>
-              formatBucketRange(
-                String(items[0]?.label ?? ""),
-                overview?.timespan.bucketMinutes ?? bucketMinutes,
-              ),
-            label: (context: TooltipItem<"bar">) =>
-              `측정된 기기 수: ${formatNumber(context.parsed.y)}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            callback: (value: string | number) =>
-              formatBucketLabel(timeSeries[Number(value)]?.bucket),
-            maxRotation: 0,
-          },
-          grid: {
-            display: false,
-          },
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0,
-          },
-          grid: {
-            color: "#eef2f7",
-          },
-        },
-      },
-    }),
-    [bucketMinutes, overview?.timespan.bucketMinutes, timeSeries],
-  );
 
   return (
     <Box>
@@ -466,7 +344,7 @@ export default function OverviewDashboardPanel() {
         </Group>
 
         <Card withBorder radius="md" p="md">
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
             <Select
               label="Room"
               placeholder="Room 선택"
@@ -490,35 +368,6 @@ export default function OverviewDashboardPanel() {
               value={untilInput}
               onChange={(event) => setUntilInput(event.target.value)}
             />
-            <Stack gap={6}>
-              <Text size="sm" fw={600}>
-                Bucket
-              </Text>
-              <SegmentedControl
-                value={String(bucketMinutes)}
-                onChange={(value) =>
-                  setBucketMinutes(Number(value) as 10 | 30 | 60)
-                }
-                data={[
-                  { label: "10분", value: "10" },
-                  { label: "30분", value: "30" },
-                  { label: "60분", value: "60" },
-                ]}
-              />
-            </Stack>
-            <Stack gap={6}>
-              <Text size="sm" fw={600}>
-                Limit
-              </Text>
-              <SegmentedControl
-                value={String(limit)}
-                onChange={(value) => setLimit(Number(value) as 5 | 10)}
-                data={[
-                  { label: "5", value: "5" },
-                  { label: "10", value: "10" },
-                ]}
-              />
-            </Stack>
           </SimpleGrid>
         </Card>
 
@@ -541,107 +390,7 @@ export default function OverviewDashboardPanel() {
 
         {!overviewQuery.isError && overview && (
           <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
-              {[
-                {
-                  label: "측정된 기기 수",
-                  value: formatNumber(overview.occupancy.uniqueDeviceCount),
-                },
-                {
-                  label: "점유율",
-                  value: formatPercent(
-                    overview.occupancy.occupiedCellRatePercent,
-                  ),
-                },
-                {
-                  label: "앵커 정상률",
-                  value: formatPercent(
-                    overview.anchorHealth.summary.healthyRatePercent,
-                  ),
-                },
-                {
-                  label: "연결 가능률",
-                  value: formatPercent(
-                    overview.anchorHealth.summary.reachableRatePercent,
-                  ),
-                },
-              ].map((item) => (
-                <Card key={item.label} withBorder radius="md" p="md">
-                  <Text size="sm" c="dimmed">
-                    {item.label}
-                  </Text>
-                  <Text mt={6} size="2rem" fw={900} lh={1.1}>
-                    {item.value}
-                  </Text>
-                </Card>
-              ))}
-            </SimpleGrid>
-
-            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-              <Card withBorder radius="md" p="md">
-                <Stack gap="md">
-                  <Group justify="space-between" align="flex-start">
-                    <Stack gap={2}>
-                      <Text size="lg" fw={700}>
-                        혼잡도 / 점유율
-                      </Text>
-                      <Text size="sm" c="dimmed">
-                        cell size {formatNumber(overview.occupancy.cellSize, 2)}
-                      </Text>
-                    </Stack>
-                    <Badge variant="light" color="blue">
-                      {overview.timespan.bucketMinutes}분 bucket
-                    </Badge>
-                  </Group>
-
-                  {isEmptyOccupancy ? (
-                    <Text c="dimmed">
-                      선택한 시간 범위에 측정된 기기가 없습니다
-                    </Text>
-                  ) : (
-                    <Stack gap="sm">
-                      <Text size="3rem" fw={900} lh={1}>
-                        {formatNumber(overview.occupancy.uniqueDeviceCount)}
-                      </Text>
-                      <Progress
-                        value={overview.occupancy.occupiedCellRatePercent ?? 0}
-                        size="lg"
-                        radius="sm"
-                        color="blue"
-                      />
-                      <Group justify="space-between">
-                        <Text size="sm" c="dimmed">
-                          점유율{" "}
-                          {formatPercent(
-                            overview.occupancy.occupiedCellRatePercent,
-                          )}
-                        </Text>
-                        <Text size="sm" c="dimmed">
-                          {formatNumber(overview.occupancy.occupiedCellCount)} /{" "}
-                          {formatNumber(overview.occupancy.totalCellCount)} cells
-                        </Text>
-                      </Group>
-                    </Stack>
-                  )}
-
-                  <Group gap="lg">
-                    <Text size="sm" c="dimmed">
-                      estimates{" "}
-                      <Text span fw={700} c="dark">
-                        {formatNumber(overview.occupancy.estimateCount)}
-                      </Text>
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      occupied cells{" "}
-                      <Text span fw={700} c="dark">
-                        {formatNumber(overview.occupancy.occupiedCellCount)}
-                      </Text>
-                    </Text>
-                  </Group>
-                </Stack>
-              </Card>
-
-              <Card withBorder radius="md" p="md">
+            <Card withBorder radius="md" p="md">
                 <Stack gap="md">
                   <Group justify="space-between">
                     <Text size="lg" fw={700}>
@@ -810,81 +559,6 @@ export default function OverviewDashboardPanel() {
                   )}
                 </Stack>
               </Card>
-            </SimpleGrid>
-
-            <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
-              <Card withBorder radius="md" p="md">
-                <Stack gap="md">
-                  <Group justify="space-between" align="flex-end">
-                    <Text size="lg" fw={700}>
-                      붐비는 시간대
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      uniqueDeviceCount 내림차순
-                    </Text>
-                  </Group>
-                  {busiestSlots.length ? (
-                    <Table.ScrollContainer minWidth={520}>
-                      <Table striped highlightOnHover>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>시간대</Table.Th>
-                            <Table.Th>기기 수</Table.Th>
-                            <Table.Th>Estimates</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {busiestSlots.map((slot) => (
-                            <Table.Tr key={slot.bucket}>
-                              <Table.Td>
-                                <Text fw={800}>
-                                  {formatBucketRange(
-                                    slot.bucket,
-                                    overview.timespan.bucketMinutes,
-                                  )}
-                                </Text>
-                              </Table.Td>
-                              <Table.Td>
-                                {formatNumber(slot.uniqueDeviceCount)}
-                              </Table.Td>
-                              <Table.Td>
-                                {formatNumber(slot.estimateCount)}
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
-                    </Table.ScrollContainer>
-                  ) : (
-                    <Text c="dimmed">
-                      선택한 시간 범위에 측정된 기기가 없습니다
-                    </Text>
-                  )}
-                </Stack>
-              </Card>
-
-              <Card withBorder radius="md" p="md">
-                <Stack gap="md">
-                  <Group justify="space-between" align="flex-end">
-                    <Text size="lg" fw={700}>
-                      시간대 추이
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {overview.timespan.bucketMinutes}분 단위
-                    </Text>
-                  </Group>
-                  {timeSeries.length ? (
-                    <Box style={{ height: 320 }}>
-                      <Bar data={chartData} options={chartOptions} />
-                    </Box>
-                  ) : (
-                    <Text c="dimmed">
-                      선택한 시간 범위에 측정된 기기가 없습니다
-                    </Text>
-                  )}
-                </Stack>
-              </Card>
-            </SimpleGrid>
           </Stack>
         )}
       </Stack>

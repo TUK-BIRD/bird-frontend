@@ -100,6 +100,7 @@ export interface BleLocationEstimatesRequest {
   until?: string;
   windowMinutes?: number;
   minimumAnchorMatches?: number;
+  minimumConfidence?: number;
   requestKey?: number;
   enabled?: boolean;
 }
@@ -127,6 +128,7 @@ export async function fetchBleLocationEstimates(
     until,
     windowMinutes = 5,
     minimumAnchorMatches = 3,
+    minimumConfidence,
   } = params;
 
   const response = await apiClient.get(
@@ -137,6 +139,7 @@ export async function fetchBleLocationEstimates(
         until,
         window_minutes: windowMinutes,
         minimum_anchor_matches: minimumAnchorMatches,
+        minimum_confidence: minimumConfidence,
       },
     }
   );
@@ -186,6 +189,7 @@ export default function useBleLocationEstimates(
     until,
     windowMinutes = 5,
     minimumAnchorMatches = 3,
+    minimumConfidence,
     requestKey,
     enabled = true,
   } = params;
@@ -201,6 +205,7 @@ export default function useBleLocationEstimates(
       until,
       windowMinutes,
       minimumAnchorMatches,
+      minimumConfidence,
       requestKey,
     ],
     queryFn: () =>
@@ -211,6 +216,7 @@ export default function useBleLocationEstimates(
         until,
         windowMinutes,
         minimumAnchorMatches,
+        minimumConfidence,
     }),
     enabled: isReady,
     staleTime: 60 * 1000,

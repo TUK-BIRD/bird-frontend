@@ -137,7 +137,7 @@ export default function SpaceSelect() {
                       cursor: "pointer",
                     }}
                     onClick={() =>
-                      navigate(`/admin/space/${space.id}/dashboard`)
+                      navigate(`/admin/space/${space.id}/dashboard/overview`)
                     }
                   >
                     <Stack gap="xs">
@@ -155,7 +155,7 @@ export default function SpaceSelect() {
                           variant="subtle"
                           rightSection={<IconArrowRight size={16} />}
                           onClick={() =>
-                            navigate(`/admin/space/${space.id}/dashboard`)
+                            navigate(`/admin/space/${space.id}/dashboard/overview`)
                           }
                         >
                           대시보드
