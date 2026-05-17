@@ -66,7 +66,7 @@ const jsDayToPythonWeekday = (jsDay: number): number =>
 const pad = (value: number) => value.toString().padStart(2, "0");
 const ACTUAL_WINDOW_MINUTES = 10;
 const MINIMUM_ANCHOR_MATCHES = 2;
-const ACTUAL_MINIMUM_CONFIDENCE = 0.5;
+const ACTUAL_MINIMUM_CONFIDENCE = 0.7;
 
 const toDateInputValue = (value: Date) =>
   `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
