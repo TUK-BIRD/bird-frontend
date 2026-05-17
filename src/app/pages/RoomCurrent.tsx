@@ -55,9 +55,13 @@ ChartJS.register(
   Legend,
 );
 
-const DAY_OF_WEEK_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const DAY_OF_WEEK_LABELS = ["월", "화", "수", "목", "금", "토", "일"] as const;
+
 const getDayOfWeekValue = (label: string): number =>
   DAY_OF_WEEK_LABELS.indexOf(label as (typeof DAY_OF_WEEK_LABELS)[number]);
+
+const jsDayToPythonWeekday = (jsDay: number): number =>
+  jsDay === 0 ? 6 : jsDay - 1;
 
 const pad = (value: number) => value.toString().padStart(2, "0");
 const ACTUAL_WINDOW_MINUTES = 10;
@@ -569,7 +573,7 @@ function HistoryChart({
 export default function RoomCurrent() {
   const { spaceId, roomId } = useParams<{ spaceId: string; roomId: string }>();
   const [selectedDayLabel, setSelectedDayLabel] = useState<string>(
-    DAY_OF_WEEK_LABELS[new Date().getDay()],
+    DAY_OF_WEEK_LABELS[jsDayToPythonWeekday(new Date().getDay())],
   );
   const [historyDate, setHistoryDate] = useState(() =>
     toDateInputValue(new Date()),
@@ -663,7 +667,7 @@ export default function RoomCurrent() {
     void roomQuery.refetch();
   };
 
-  const todayDayOfWeek = new Date().getDay();
+  const todayDayOfWeek = jsDayToPythonWeekday(new Date().getDay());
   const todayLabel = DAY_OF_WEEK_LABELS[todayDayOfWeek];
 
   return (
