@@ -225,7 +225,7 @@ function WeeklyChart({
   const labels = hourlyData.map((h) => h.time);
   const busiest = useMemo(() => getBusiestHour(hourlyData), [hourlyData]);
 
-  const chartData: ChartData<"bar" | "line", number[], string> = {
+  const chartData: ChartData<"bar", number[], string> = {
     labels,
     datasets: [
       {
@@ -238,29 +238,6 @@ function WeeklyChart({
         borderRadius: 6,
         barPercentage: 0.7,
         categoryPercentage: 0.8,
-      },
-      {
-        type: "line" as const,
-        label: "평균",
-        data: hourlyData.map((h) => h.avgDeviceCount),
-        borderColor: "#f59e0b",
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.4,
-        fill: false,
-      },
-      {
-        type: "line" as const,
-        label: "최대",
-        data: hourlyData.map((h) => h.maxDeviceCount),
-        borderColor: "#ef4444",
-        borderWidth: 1.5,
-        borderDash: [4, 4],
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.4,
-        fill: false,
       },
     ],
   };
