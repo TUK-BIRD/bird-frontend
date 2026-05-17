@@ -17,7 +17,6 @@ import {
   IconHomeEdit,
   IconLayoutDashboard,
   IconLogout,
-  IconPlus,
   IconSettings,
   IconUsers,
 } from "@tabler/icons-react";
@@ -44,21 +43,13 @@ export default function AdminLayout() {
   const menuItems = [
     {
       label: "대시보드",
-      path: `/admin/space/${spaceId}/dashboard`,
+      path: `/admin/space/${spaceId}/dashboard/overview`,
       icons: IconLayoutDashboard,
-      description: "운영 차트와 비교 차트 보기",
+      description: "운영 현황 보기",
       children: [
         {
           label: "종합 대시보드",
           path: `/admin/space/${spaceId}/dashboard/overview`,
-        },
-        {
-          label: "Anchor Set Chart",
-          path: `/admin/space/${spaceId}/dashboard`,
-        },
-        {
-          label: "BLE Compare Chart",
-          path: `/admin/space/${spaceId}/dashboard/ble-compare`,
         },
         {
           label: "Location Estimates",
@@ -79,11 +70,6 @@ export default function AdminLayout() {
         {
           label: "방 목록",
           path: `/admin/space/${spaceId}/rooms`,
-        },
-        {
-          label: "방 생성",
-          path: `/admin/space/${spaceId}/rooms/create`,
-          icon: IconPlus,
         },
       ],
     },
@@ -121,7 +107,10 @@ export default function AdminLayout() {
               size="sm"
               hiddenFrom="sm"
             />
-            <Text component={Link} to={`/admin/space/${spaceId}/dashboard`}>
+            <Text
+              component={Link}
+              to={`/admin/space/${spaceId}/dashboard/overview`}
+            >
               Bird Admin
             </Text>
           </Group>
@@ -139,7 +128,7 @@ export default function AdminLayout() {
             data={spaceSelectData}
             onChange={(value) => {
               if (!value) return;
-              navigate(`/admin/space/${value}/dashboard`);
+              navigate(`/admin/space/${value}/dashboard/overview`);
             }}
           />
         </Group>

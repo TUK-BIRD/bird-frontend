@@ -1,8 +1,7 @@
-import { Outlet, Route, Routes } from "react-router";
+import { Navigate, Outlet, Route, Routes, useParams } from "react-router";
 import RootLayout from "./layout/RootLayout";
 import AdminLayout from "./layout/AdminLayout";
 import Home from "./pages/Home";
-import Dashboard from "./pages/admin/Dashboard";
 import AuthLayout from "./layout/AuthLayout";
 import AdminSignIn from "./pages/admin/auth/AdminSignIn";
 import NotFound from "./pages/NotFound";
@@ -11,15 +10,23 @@ import { RequireSpaceAccess } from "./components/RequireSpaceAccess";
 import AdminSignUp from "./pages/admin/auth/AdminSignUp";
 import SpaceSelect from "./pages/admin/SpaceSelect";
 import RoomSelect from "./pages/admin/RoomSelect";
-import RoomCreate from "./pages/admin/RoomCreate";
 import Members from "./pages/admin/Members";
 import Invitation from "./pages/admin/Invitation";
-import RoomFloorPlan from "./pages/admin/RoomFloorPlan";
-import BleCompareDashboardPage from "./pages/admin/BleCompareDashboardPage";
 import LocationEstimatesPage from "./pages/admin/LocationEstimatesPage";
 import LocationHeatmapPage from "./pages/admin/LocationHeatmapPage";
 import OverviewDashboardPage from "./pages/admin/OverviewDashboardPage";
 import Settings from "./pages/admin/Settings";
+import RoomCurrent from "./pages/RoomCurrent";
+
+function RoomsRedirect() {
+  const { spaceId } = useParams<{ spaceId: string }>();
+  return <Navigate to={`/admin/space/${spaceId}/rooms`} replace />;
+}
+
+function DashboardRedirect() {
+  const { spaceId } = useParams<{ spaceId: string }>();
+  return <Navigate to={`/admin/space/${spaceId}/dashboard/overview`} replace />;
+}
 
 export default function Router() {
   return (
@@ -27,6 +34,8 @@ export default function Router() {
       <Route element={<RootLayout />}>
         {/* Pages for Average Users */}
         <Route path="/" element={<Home />} />
+        <Route path="spaces/:spaceId/rooms/:roomId" element={<RoomCurrent />} />
+        <Route path="space/:spaceId/rooms/:roomId" element={<RoomCurrent />} />
 
         {/* Admin Pages */}
         <Route
@@ -44,16 +53,22 @@ export default function Router() {
               </RequireSpaceAccess>
             }
           >
-            <Route path="space/:spaceId/rooms/create" element={<RoomCreate />} />
+            <Route
+              path="space/:spaceId/rooms/create"
+              element={<RoomsRedirect />}
+            />
             <Route element={<AdminLayout />}>
-              <Route path="space/:spaceId/dashboard" element={<Dashboard />} />
+              <Route
+                path="space/:spaceId/dashboard"
+                element={<DashboardRedirect />}
+              />
               <Route
                 path="space/:spaceId/dashboard/overview"
                 element={<OverviewDashboardPage />}
               />
               <Route
                 path="space/:spaceId/dashboard/ble-compare"
-                element={<BleCompareDashboardPage />}
+                element={<DashboardRedirect />}
               />
               <Route
                 path="space/:spaceId/dashboard/location-estimates"
@@ -66,7 +81,7 @@ export default function Router() {
               <Route path="space/:spaceId/rooms" element={<RoomSelect />} />
               <Route
                 path="space/:spaceId/rooms/:roomId"
-                element={<RoomFloorPlan />}
+                element={<RoomsRedirect />}
               />
               <Route path="space/:spaceId/members" element={<Members />} />
               <Route path="space/:spaceId/settings" element={<Settings />} />
