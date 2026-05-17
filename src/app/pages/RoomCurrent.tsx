@@ -25,10 +25,12 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import {
+  BarController,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
   Legend,
+  LineController,
   LineElement,
   LinearScale,
   PointElement,
@@ -48,7 +50,9 @@ import type { Room } from "@/types/room";
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  BarController,
   BarElement,
+  LineController,
   PointElement,
   LineElement,
   ChartTooltip,
