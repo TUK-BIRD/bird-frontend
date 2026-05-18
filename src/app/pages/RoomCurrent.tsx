@@ -39,8 +39,7 @@ import {
   type TooltipItem,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { useQueries } from "@tanstack/react-query";
 import { fetchBleLocationEstimates } from "@/hooks/useBleLocationEstimates";
 import useRoom from "@/hooks/useRoom";
 import useWeeklyEstimates from "@/hooks/useWeeklyEstimates";
@@ -103,20 +102,11 @@ const formatNumber = (value?: number | null) => {
   return Number(value).toLocaleString();
 };
 
-interface DailyEstimatePoint {
-  time: string;
-  estimated_device_count: number;
-  avg_device_count: number;
-  max_device_count: number;
-}
-
-interface DailyEstimateResponse {
-  space: { id: number; name: string };
-  room: { id: number; name: string };
-  date: string;
-  day_of_week: number;
-  estimates: DailyEstimatePoint[];
-}
+const normalizeHourTime = (value: string) => {
+  const [rawHour = "", rawMinute = ""] = value.trim().split(":");
+  if (!rawHour || !rawMinute) return value;
+  return `${rawHour.padStart(2, "0")}:${rawMinute.slice(0, 2)}`;
+};
 
 interface ActualEstimateFrame {
   index: number;
@@ -370,7 +360,7 @@ function WeeklyChart({
 
 interface HistoryChartProps {
   selectedDate: string;
-  predictionData?: DailyEstimateResponse;
+  weeklyPredictionDay: WeeklyEstimateDay | null;
   actualFrames: ActualEstimateFrame[];
   actualValues: Array<number | null>;
   isLoading: boolean;
@@ -381,7 +371,7 @@ interface HistoryChartProps {
 
 function HistoryChart({
   selectedDate,
-  predictionData,
+  weeklyPredictionDay,
   actualFrames,
   actualValues,
   isLoading,
@@ -394,15 +384,25 @@ function HistoryChart({
     [actualFrames, actualValues],
   );
 
+  const predictionByHour = useMemo(() => {
+    const hourly = groupSlotsByHour(weeklyPredictionDay?.slots ?? []);
+    return new Map(
+      hourly.map((slot) => [
+        normalizeHourTime(slot.time),
+        Number(slot.estimatedDeviceCount),
+      ]),
+    );
+  }, [weeklyPredictionDay]);
+
   const datasets: ChartData<"bar" | "line", Array<number | null>, string>["datasets"] = [];
 
-  if (predictionData) {
+  if (weeklyPredictionDay) {
     datasets.push({
       type: "bar" as const,
-      label: "AI 예측",
+      label: "예측 인원",
       data: actualFrames.map((f) => {
-        const est = predictionData.estimates.find((e) => e.time === f.time);
-        return est?.estimated_device_count ?? null;
+        const matched = predictionByHour.get(normalizeHourTime(f.time));
+        return matched ?? null;
       }),
       backgroundColor: "rgba(13, 148, 136, 0.25)",
       borderColor: "rgba(15, 118, 110, 0.6)",
@@ -588,6 +588,30 @@ export default function RoomCurrent() {
     () => buildHourlyFrames(historyDate),
     [historyDate],
   );
+  const historyDateValue = useMemo(
+    () => parseLocalDateInput(historyDate),
+    [historyDate],
+  );
+  const historyDayOfWeek = useMemo(
+    () =>
+      historyDateValue ? jsDayToPythonWeekday(historyDateValue.getDay()) : null,
+    [historyDateValue],
+  );
+  const historyWeeklyQuery = useWeeklyEstimates(
+    spaceId ?? "",
+    roomId,
+    historyDayOfWeek ?? undefined,
+    Boolean(spaceId && roomId && historyOpen && historyDayOfWeek !== null),
+  );
+  const historyWeeklyDay = useMemo(
+    () =>
+      historyDayOfWeek === null
+        ? null
+        : historyWeeklyQuery.data?.weeklyEstimates.find(
+            (d) => d.dayOfWeek === historyDayOfWeek,
+          ) ?? null,
+    [historyWeeklyQuery.data, historyDayOfWeek],
+  );
   const historyActualQueries = useQueries({
     queries: historyFrames.map((frame) => ({
       queryKey: [
@@ -623,30 +647,11 @@ export default function RoomCurrent() {
   );
   const historyActualError = historyActualQueries.find((q) => q.isError)?.error;
 
-  const historyPredictionQuery = useQuery<DailyEstimateResponse>({
-    queryKey: [
-      "publicRoomDailyEstimatePrediction",
-      spaceId,
-      roomId,
-      historyDate,
-      refreshKey,
-    ],
-    queryFn: () =>
-      axios
-        .get(
-          `${import.meta.env.VITE_API_URL}/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
-          { params: { date: historyDate } },
-        )
-        .then((res) => res.data as DailyEstimateResponse),
-    enabled: Boolean(spaceId && roomId && historyOpen),
-    staleTime: 60 * 1000,
-  });
-
   const isFetching =
     roomQuery.isFetching ||
     weeklyQuery.isFetching ||
     historyActualIsFetching ||
-    historyPredictionQuery.isFetching;
+    historyWeeklyQuery.isFetching;
 
   const refresh = () => {
     setRefreshKey((current) => current + 1);
@@ -778,24 +783,24 @@ export default function RoomCurrent() {
                   </Group>
                   <HistoryChart
                     selectedDate={historyDate}
-                    predictionData={historyPredictionQuery.data}
+                    weeklyPredictionDay={historyWeeklyDay}
                     actualFrames={historyFrames}
                     actualValues={historyActualValues}
-                    isLoading={
-                      historyPredictionQuery.isLoading || historyActualIsLoading
-                    }
+                    isLoading={historyWeeklyQuery.isLoading || historyActualIsLoading}
                     isFetching={
-                      historyPredictionQuery.isFetching ||
+                      historyWeeklyQuery.isFetching ||
                       historyActualIsFetching
                     }
                     isError={
-                      historyPredictionQuery.isError ||
+                      historyWeeklyQuery.isError ||
                       Boolean(historyActualError)
                     }
                     errorMessage={
-                      historyActualError instanceof Error
-                        ? historyActualError.message
-                        : undefined
+                      historyWeeklyQuery.error instanceof Error
+                        ? historyWeeklyQuery.error.message
+                        : historyActualError instanceof Error
+                          ? historyActualError.message
+                          : undefined
                     }
                   />
                 </Stack>
