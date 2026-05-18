@@ -40,7 +40,7 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import apiClient from "@/api/client";
+import axios from "axios";
 import { fetchBleLocationEstimates } from "@/hooks/useBleLocationEstimates";
 import useRoom from "@/hooks/useRoom";
 import useWeeklyEstimates from "@/hooks/useWeeklyEstimates";
@@ -632,9 +632,9 @@ export default function RoomCurrent() {
       refreshKey,
     ],
     queryFn: () =>
-      apiClient
+      axios
         .get(
-          `/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
+          `${import.meta.env.VITE_API_URL}/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
           { params: { date: historyDate } },
         )
         .then((res) => res.data as DailyEstimateResponse),
