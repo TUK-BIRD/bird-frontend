@@ -4,7 +4,6 @@ import {
   Accordion,
   Badge,
   Box,
-  Button,
   Card,
   Center,
   Container,
@@ -21,7 +20,6 @@ import {
   IconCalendar,
   IconClockHour4,
   IconHistory,
-  IconRefresh,
   IconUsers,
 } from "@tabler/icons-react";
 import {
@@ -564,7 +562,6 @@ export default function RoomCurrent() {
     toDateInputValue(new Date()),
   );
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const roomQuery = useRoom(spaceId, roomId);
   const room = roomQuery.data as Room | undefined;
   const selectedDayOfWeek = getDayOfWeekValue(selectedDayLabel);
@@ -620,7 +617,6 @@ export default function RoomCurrent() {
         roomId,
         frame.since,
         frame.until,
-        refreshKey,
       ],
       queryFn: () =>
         fetchBleLocationEstimates({
@@ -647,17 +643,6 @@ export default function RoomCurrent() {
   );
   const historyActualError = historyActualQueries.find((q) => q.isError)?.error;
 
-  const isFetching =
-    roomQuery.isFetching ||
-    weeklyQuery.isFetching ||
-    historyActualIsFetching ||
-    historyWeeklyQuery.isFetching;
-
-  const refresh = () => {
-    setRefreshKey((current) => current + 1);
-    void roomQuery.refetch();
-  };
-
   const todayDayOfWeek = jsDayToPythonWeekday(new Date().getDay());
   const todayLabel = DAY_OF_WEEK_LABELS[todayDayOfWeek];
 
@@ -677,14 +662,6 @@ export default function RoomCurrent() {
                 </Text>
               ) : null}
             </Stack>
-            <Button
-              leftSection={<IconRefresh size={16} />}
-              variant="light"
-              onClick={refresh}
-              loading={isFetching}
-            >
-              새로고침
-            </Button>
           </Group>
 
           <Card withBorder radius="lg" p="lg">
