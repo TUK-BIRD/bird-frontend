@@ -40,7 +40,7 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import apiClient from "@/api/client";
 import { fetchBleLocationEstimates } from "@/hooks/useBleLocationEstimates";
 import useRoom from "@/hooks/useRoom";
 import useWeeklyEstimates from "@/hooks/useWeeklyEstimates";
