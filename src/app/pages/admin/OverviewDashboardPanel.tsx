@@ -13,7 +13,6 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
   Title,
 } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
@@ -60,56 +59,6 @@ const healthStateMeta: Record<
     background: "#f8fafc",
     border: "#cbd5e1",
   },
-};
-
-const pad = (value: number) => value.toString().padStart(2, "0");
-
-const toDateInputValue = (value: Date) => {
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(
-    value.getDate(),
-  )}`;
-};
-
-const getTodayStartInputValue = () => {
-  return toDateInputValue(new Date());
-};
-
-const parseLocalDateInput = (value: string) => {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  const [, year, month, day] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const toIsoWithOffset = (date: Date) => {
-  const offsetMinutes = -date.getTimezoneOffset();
-  const sign = offsetMinutes >= 0 ? "+" : "-";
-  const absMinutes = Math.abs(offsetMinutes);
-  const offsetHours = Math.floor(absMinutes / 60);
-  const offsetRemainderMinutes = absMinutes % 60;
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
-    date.getSeconds(),
-  )}${sign}${pad(offsetHours)}:${pad(offsetRemainderMinutes)}`;
-};
-
-const toRequestSinceTimestamp = (input: string) => {
-  const parsed = parseLocalDateInput(input);
-  if (!parsed) return undefined;
-  return toIsoWithOffset(parsed);
-};
-
-const toRequestUntilTimestamp = (input: string) => {
-  const parsed = parseLocalDateInput(input);
-  if (!parsed) return undefined;
-
-  const until = new Date(parsed);
-  until.setDate(until.getDate() + 1);
-  return toIsoWithOffset(until);
 };
 
 const formatNumber = (value?: number | null, fractionDigits = 0) => {
@@ -218,10 +167,6 @@ export default function OverviewDashboardPanel() {
   const queryClient = useQueryClient();
   const [selectedRoomId, setSelectedRoomId] = useState<string>();
   const [scanControlError, setScanControlError] = useState<string | null>(null);
-  const [sinceInput, setSinceInput] = useState(getTodayStartInputValue);
-  const [untilInput, setUntilInput] = useState(() =>
-    toDateInputValue(new Date()),
-  );
 
   const { data: rooms } = useRooms(spaceId ?? "");
   const roomOptions = useMemo(
@@ -245,8 +190,6 @@ export default function OverviewDashboardPanel() {
   const overviewQuery = useOverviewDashboard({
     spaceId: spaceId ?? "",
     roomId: activeRoomId,
-    since: toRequestSinceTimestamp(sinceInput),
-    until: toRequestUntilTimestamp(untilInput),
     enabled: Boolean(activeRoomId),
   });
   const scanStatusQuery = useQuery<RoomScanStatusResponse>({
@@ -344,7 +287,7 @@ export default function OverviewDashboardPanel() {
         </Group>
 
         <Card withBorder radius="md" p="md">
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+          <SimpleGrid cols={{ base: 1, sm: 1 }} spacing="md">
             <Select
               label="Room"
               placeholder="Room 선택"
@@ -355,18 +298,6 @@ export default function OverviewDashboardPanel() {
                 setScanControlError(null);
               }}
               disabled={!roomOptions.length}
-            />
-            <TextInput
-              label="Since"
-              type="date"
-              value={sinceInput}
-              onChange={(event) => setSinceInput(event.target.value)}
-            />
-            <TextInput
-              label="Until"
-              type="date"
-              value={untilInput}
-              onChange={(event) => setUntilInput(event.target.value)}
             />
           </SimpleGrid>
         </Card>

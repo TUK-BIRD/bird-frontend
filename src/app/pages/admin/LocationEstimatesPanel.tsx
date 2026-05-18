@@ -759,21 +759,11 @@ export default function LocationEstimatesPanel() {
           const { ctx, chartArea, scales } = chart;
           const xZero = scales.x.getPixelForValue(0);
           const yZero = scales.y.getPixelForValue(0);
-          const xMax = scales.x.getPixelForValue(playbackRadiomap.xRangeMax);
-          const yMax = scales.y.getPixelForValue(playbackRadiomap.yRangeMax);
 
           ctx.save();
           ctx.strokeStyle = "#475569";
           ctx.fillStyle = "#475569";
           ctx.lineWidth = 1;
-          ctx.setLineDash([6, 5]);
-
-          ctx.beginPath();
-          ctx.moveTo(xMax, chartArea.top);
-          ctx.lineTo(xMax, chartArea.bottom);
-          ctx.moveTo(chartArea.left, yMax);
-          ctx.lineTo(chartArea.right, yMax);
-          ctx.stroke();
 
           if (xZero >= chartArea.left && xZero <= chartArea.right) {
             ctx.strokeStyle = "#94a3b8";
@@ -801,19 +791,6 @@ export default function LocationEstimatesPanel() {
           if (yZero >= chartArea.top && yZero <= chartArea.bottom) {
             ctx.fillText("y 0", chartArea.left + 8, yZero + 6);
           }
-          ctx.fillStyle = "#475569";
-          ctx.fillText(
-            `x max ${formatNumber(playbackRadiomap.xRangeMax, 1)}`,
-            Math.min(xMax + 8, chartArea.right - 72),
-            chartArea.top + 8,
-          );
-          ctx.textAlign = "right";
-          ctx.textBaseline = "bottom";
-          ctx.fillText(
-            `y max ${formatNumber(playbackRadiomap.yRangeMax, 1)}`,
-            chartArea.right - 8,
-            Math.max(yMax - 8, chartArea.top + 16),
-          );
           ctx.restore();
         },
       },
