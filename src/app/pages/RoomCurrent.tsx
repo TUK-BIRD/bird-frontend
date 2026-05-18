@@ -106,11 +106,15 @@ const formatNumber = (value?: number | null) => {
 interface DailyEstimatePoint {
   time: string;
   estimated_device_count: number;
+  avg_device_count: number;
+  max_device_count: number;
 }
 
 interface DailyEstimateResponse {
+  space: { id: number; name: string };
+  room: { id: number; name: string };
   date: string;
-  day_of_week: string;
+  day_of_week: number;
   estimates: DailyEstimatePoint[];
 }
 
