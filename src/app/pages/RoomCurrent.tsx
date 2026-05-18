@@ -571,6 +571,7 @@ export default function RoomCurrent() {
     selectedDayOfWeek,
     Boolean(spaceId && roomId),
   );
+  const roomName = room?.name ?? weeklyQuery.data?.room.name;
   const weeklyDay = useMemo(
     () =>
       weeklyQuery.data?.weeklyEstimates.find(
@@ -627,9 +628,9 @@ export default function RoomCurrent() {
       refreshKey,
     ],
     queryFn: () =>
-      axios
+      apiClient
         .get(
-          `https://bird-ai.l1n.kr/api/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
+          `/spaces/${spaceId}/rooms/${roomId}/estimate/day`,
           { params: { date: historyDate } },
         )
         .then((res) => res.data as DailyEstimateResponse),
@@ -660,7 +661,7 @@ export default function RoomCurrent() {
               <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                 Room Activity
               </Text>
-              <Title order={1}>{room?.name ?? "Room"}</Title>
+              <Title order={1}>{roomName ?? "Room"}</Title>
               {room?.description ? (
                 <Text c="dimmed" maw={720}>
                   {room.description}
