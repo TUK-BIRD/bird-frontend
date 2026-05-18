@@ -688,36 +688,6 @@ export default function RoomCurrent() {
                   value: label,
                 }))}
               />
-              <Group gap={4}>
-                {DAY_OF_WEEK_LABELS.map((label) => {
-                  const dayOfWeek = getDayOfWeekValue(label);
-                  const day = weeklyQuery.data?.weeklyEstimates.find(
-                    (d) => d.dayOfWeek === dayOfWeek,
-                  );
-                  if (!day) return null;
-                  const peak = day.slots.reduce(
-                    (max, s) =>
-                      s.estimatedDeviceCount > max
-                        ? s.estimatedDeviceCount
-                        : max,
-                    0,
-                  );
-                  if (peak === 0) return null;
-                  return (
-                    <Badge
-                      key={label}
-                      color={
-                        label === selectedDayLabel ? "teal" : "gray"
-                      }
-                      variant={label === selectedDayLabel ? "filled" : "light"}
-                      radius="sm"
-                      size="sm"
-                    >
-                      {label} 최대 {peak}
-                    </Badge>
-                  );
-                })}
-              </Group>
             </Stack>
           </Card>
 
